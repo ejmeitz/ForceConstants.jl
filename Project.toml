@@ -1,0 +1,15 @@
+name = "LatticeDynamics"
+uuid = "58688e27-5ad4-4797-95f1-2920f5d19b53"
+authors = ["ejmeitz <emeitz@andrew.cmu.edu>"]
+version = "0.1.0"
+
+[deps]
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
+
+[compat]
+julia = "1"
