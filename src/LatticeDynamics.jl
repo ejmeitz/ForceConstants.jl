@@ -1,6 +1,9 @@
-"""
-Placeholder for a short summary about .
-"""
-module 
+module LatticeDynamics
 
-end # module
+using SimpleCrystals
+using StructArrays
+using Unitful
+using StaticArrays
+using ForwardDiff
+
+end
