@@ -21,7 +21,9 @@ struct UnitCellSystem{D,L} <: System
     box_sizes::L
 end
 
-function UnitCellSystem(crystal::Crystal)
+function UnitCellSystem(crystal::Crystal{D}, num_unit_cells::SVector{D,Int}) where D
+    @assert sum(crystal.N_unit_cells) == D "Crystal must be a single unit cell"
+
     positions = SimpleCrystals.position(crystal)
     masses = SimpleCrystals.atomic_mass(crystal)
     charges = getindex.(crystal.atoms, :charge)
@@ -29,7 +31,7 @@ function UnitCellSystem(crystal::Crystal)
                                mass = masses,
                                charge = charges))
     box_sizes = norm.(eachrow(bounding_box(crystal)))
-    return SuperCellSystem{D, typeof(box_sizes)}(atoms, crystal.N_unit_cells, box_sizes)
+    return UnitCellSystem{D, typeof(box_sizes)}(atoms, num_unit_cells, box_sizes)
 end
 
 struct SuperCellSystem{D,L} <: System

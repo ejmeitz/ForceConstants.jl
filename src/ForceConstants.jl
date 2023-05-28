@@ -1,5 +1,9 @@
 module ForceConstants
 
+#TODO
+#Long term add support for non-pair potentials
+#Add separate function for ASR that works on all dimension of arrays
+
 using SimpleCrystals
 using StructArrays
 using Unitful
