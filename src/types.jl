@@ -1,4 +1,5 @@
-export UnitCellSystem, SuperCellSystem
+export UnitCellSystem, SuperCellSystem,
+    masses, mass, position, positions, charges, charge, n_atoms
 
 struct Atom{P,C,M}
     position::P
@@ -37,10 +38,6 @@ struct SuperCellSystem{D,L} <: System
 end
 
 function SuperCellSystem(crystal::Crystal{D}) where D
-    # @assert any(typeof(crystal.lattice.crystal_family) .<:
-    #      [CubicLattice, OrthorhombicLattice, TetragonalLattice,
-    #       SquareLattice, RectangularLattice]) "Only cubic conventional cells will work"
-
     positions = SimpleCrystals.position(crystal)
     masses = SimpleCrystals.atomic_mass(crystal)
     charges = getindex.(crystal.atoms, :charge)
