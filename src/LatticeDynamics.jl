@@ -4,6 +4,13 @@ using SimpleCrystals
 using StructArrays
 using Unitful
 using StaticArrays
-using ForwardDiff
+using LinearAlgebra
+
+# using ForwardDiff
+
+include("types.jl")
+include("interactions.jl")
+include("dynamical_matrix.jl")
+include("third_order.jl")
 
 end

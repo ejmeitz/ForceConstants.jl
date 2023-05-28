@@ -1,3 +1,5 @@
+export UnitCellSystem, SuperCellSystem
+
 struct Atom{P,C,M}
     position::P
     mass::M
@@ -15,12 +17,38 @@ abstract type System end
 struct UnitCellSystem{D,L} <: System
     atoms::StructArray{Atom}
     num_unit_cells::SVector{D,Int}
-    L::L
+    box_sizes::L
+end
+
+function UnitCellSystem(crystal::Crystal)
+    positions = SimpleCrystals.position(crystal)
+    masses = SimpleCrystals.atomic_mass(crystal)
+    charges = getindex.(crystal.atoms, :charge)
+    atoms = StructArray{Atom}((position = positions,
+                               mass = masses,
+                               charge = charges))
+    box_sizes = norm.(eachrow(bounding_box(crystal)))
+    return SuperCellSystem{D, typeof(box_sizes)}(atoms, crystal.N_unit_cells, box_sizes)
 end
 
 struct SuperCellSystem{D,L} <: System
     atoms::StructArray{Atom}
-    L::L
+    box_sizes::L
+end
+
+function SuperCellSystem(crystal::Crystal{D}) where D
+    # @assert any(typeof(crystal.lattice.crystal_family) .<:
+    #      [CubicLattice, OrthorhombicLattice, TetragonalLattice,
+    #       SquareLattice, RectangularLattice]) "Only cubic conventional cells will work"
+
+    positions = SimpleCrystals.position(crystal)
+    masses = SimpleCrystals.atomic_mass(crystal)
+    charges = getindex.(crystal.atoms, :charge)
+    atoms = StructArray{Atom}((position = positions,
+                               mass = masses,
+                               charge = charges))
+    box_sizes = norm.(eachrow(bounding_box(crystal)))
+    return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
 end
 
 masses(sys::System) = sys.atoms.mass
