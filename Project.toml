@@ -1,4 +1,4 @@
-name = "LatticeDynamics"
+name = "ForceConstants"
 uuid = "58688e27-5ad4-4797-95f1-2920f5d19b53"
 authors = ["ejmeitz <emeitz@andrew.cmu.edu>"]
 version = "0.1.0"
