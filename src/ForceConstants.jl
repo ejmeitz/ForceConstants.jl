@@ -1,4 +1,4 @@
-module LatticeDynamics
+module ForceConstants
 
 using SimpleCrystals
 using StructArrays
