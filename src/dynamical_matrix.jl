@@ -1,4 +1,4 @@
-export dynamicalMatrix
+export dynamicalMatrix, test
 
 ### Unit Cell ###
 function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SVector{D}, tol) where D
@@ -105,6 +105,37 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, 
     return dynmat
 end
 
+#Calculate element 1,1 at gamma point
+function test(sys::UnitCellSystem{3}, pot::PairPotential)
+    val = 0.0
+    k_point = [0.0,0.0,0.0]
+    α = 1
+    β = 1
+    i = 1
+    j = 1
+    r_i0 = position(sys, (1,1,1), i)
+
+    for uc_idx in keys(sys.atoms)
+        #Position of atom j in unitcell k
+        r_jk = position(sys, uc_idx, j)
+
+        r_i0_jk = r_i0 .- r_jk
+        r_i0_jk = nearest_mirror(r_i0_jk, sys.box_sizes_SC)
+        dist = norm(r_i0_jk)
+
+        #Cross terms
+        if dist < pot.r_cut && j != i
+            val += -ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))
+        #Self terms
+        elseif dist < pot.r_cut && uc_idx == (1,1,1) && j == i #dist is always 0 for self terms --> exp() term is 1
+            val += ϕ₂_self(sys, pot, α, β, r_i0, i)
+        end
+
+    end
+
+    return val/ustrip(sqrt(mass(sys,i)*mass(sys,j)))
+end
+
 ### Super Cell ###
 
 function dynamicalMatrix(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
@@ -186,10 +217,10 @@ function ϕ₂_self(sys, pot, α, β, r_i0, i)
     value = 0.0
     
     #Loop all atoms in system
-    for j in range(1, atoms_per_unit_cell)
-        for uc_idx in keys(sys.atoms)
+    for uc_idx in keys(sys.atoms)
+        for j in range(1, atoms_per_unit_cell)
             if (uc_idx == (1,1,1) && i == j) #skip atom i0
-                continue
+                value += 0.0
             else
                 r_jk = position(sys, uc_idx, j)
 
@@ -209,21 +240,21 @@ function nearest_mirror(r_ij, box_sizes)
     r_x = r_ij[1]; r_y = r_ij[2]; r_z = r_ij[3]
     L_x, L_y, L_z = box_sizes
     if r_x > L_x/2
-        r_x = r_x - L_x
+        r_x -= L_x
     elseif r_x < -L_x/2
-        r_x = r_x + L_x
+        r_x += L_x
     end
         
     if r_y > L_y/2
-        r_y = r_y - L_y
+        r_y -= L_y
     elseif r_y < -L_y/2
-        r_y = r_y + L_y  
+        r_y += L_y  
     end
         
     if r_z > L_z/2
-        r_z = r_z - L_z
+        r_z -= L_z
     elseif r_z < -L_z/2
-        r_z = r_z + L_z
+        r_z += L_z
     end
     
     return [r_x,r_y,r_z] 

@@ -1,5 +1,5 @@
 export UnitCellSystem, SuperCellSystem,
-    masses, mass, position, positions, charges, charge, n_atoms
+    masses, mass, position, positions, charges, charge, n_atoms, n_atoms_per_uc
 
 struct Atom{P,C,M}
     position::P
@@ -47,11 +47,8 @@ function UnitCellSystem(crystal::Crystal{D}, num_unit_cells::SVector{D,Int}) whe
     return UnitCellSystem{D, typeof(box_sizes)}(atoms, num_unit_cells, box_sizes, box_sizes_SC)
 end
 
-# masses(sys::UnitCellSystem) = sys.atoms.mass
 mass(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].mass[atom_idx]
-# positions(sys::UnitCellSystem) = sys.atoms.position
 position(sys::UnitCellSystem, uc_idx::Tuple, atom_idx::Int) = sys.atoms[uc_idx].position[atom_idx]
-# charges(sys::UnitCellSystem) = sys.atoms.charge
 charge(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].charge[atom_idx]
 n_atoms(sys::UnitCellSystem) = length(sys.atoms)*length(sys.atoms[(1,1,1)])
 n_atoms_per_uc(sys::UnitCellSystem) = length(sys.atoms[(1,1,1)])
