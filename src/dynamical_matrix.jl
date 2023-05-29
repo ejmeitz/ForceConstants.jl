@@ -62,11 +62,11 @@ end
 function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, dynmat, k_point)
     atoms_per_unit_cell = n_atoms_per_uc(sys)
 
-    #Loop block matricies above diagonal (not including diagonal)
+    #Loop block matricies on and above diagonal
     for i in range(1, atoms_per_unit_cell)
         # Position of atom i in base unitcell
-        r_i0 = sys.atoms[(1,1,1)].position[i]
-        for j in range(i, atoms_per_unit_cell) #Note not i + 1, ASR is done inside loop
+        r_i0 = position(sys, (1,1,1), i)
+        for j in range(i, atoms_per_unit_cell)
             for α in range(1,3)
                 for β in range(1,3)
                     #Calculate dynmat index
@@ -76,19 +76,21 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, 
                     #Sum over all unit-cells
                     for uc_idx in keys(sys.atoms)
                         #Position of atom j in unitcell k
-                        r_jk = sys.atoms[uc_idx].position[j]
+                        r_jk = position(sys, uc_idx, j)
 
                         r_jk_i0 = r_jk .- r_i0
+                        r_i0_jk = r_i0 .- r_jk
                         r_jk_i0 = nearest_mirror(r_jk_i0, sys.box_sizes_SC)
+                        r_i0_jk = nearest_mirror(r_i0_jk, sys.box_sizes_SC)
                         dist = norm(r_jk_i0)
 
-                        if dist < pot.r_cut
-                            if i != j
-                                ϕ₂_val = -1*ustrip(ϕ₂(pot, dist, r_jk_i0, α, β))
-                            else #ASR
-                                ϕ₂_val = ϕ₂_self(sys, pot, α, β)
-                            end
+                        #Cross terms
+                        if dist < pot.r_cut && j != i
+                            ϕ₂_val = -ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))
                             dynmat[ii,jj] += ϕ₂_val*exp(im*dot(ustrip(k_point), ustrip(r_jk_i0)))
+                        #Self terms
+                        elseif uc_idx == (1,1,1) && j == i #dist is always 0 for self terms --> exp() term is 1
+                            dynmat[ii,jj] += ϕ₂_self(sys, pot, α, β, r_i0, i)
                         end
  
                     end
@@ -169,27 +171,33 @@ end
 
 ### Utility Functions ###
 
-function ϕ₂(pot, r_norm, rᵢⱼ, α, β)
+function ϕ₂(pot::PairPotential, r_norm, r_jk_j′k′, α, β)
+    rᵢⱼ = r_jk_j′k′
+
     Φ′ = potential_first_deriv(pot, r_norm)
     Φ′′ = potential_second_deriv(pot, r_norm)
     return (α == β) ? ((rᵢⱼ[α]*rᵢⱼ[β]/(r_norm^2))*(Φ′′ - (Φ′/r_norm))) + (Φ′/r_norm) :
                     ((rᵢⱼ[α]*rᵢⱼ[β]/(r_norm^2))*(Φ′′ - (Φ′/r_norm)))
 end
 
-#Not efficient but it works
-function ϕ₂_self(sys, pot, α, β)
+#Not efficient but it works -- reuse the ϕ₂ terms???
+function ϕ₂_self(sys, pot, α, β, r_i0, i)
     atoms_per_unit_cell = n_atoms_per_uc(sys)
     value = 0.0
-    for i in range(1, atoms_per_unit_cell)
-        r_i0 = sys.atoms[(1,1,1)].position[i]
-        for key in keys(sys.atoms)
-            if key != (1,1,1) #avoid div 0 errors
-                r_jk = sys.atoms[key].position[i]
+    
+    #Loop all atoms in system
+    for j in range(1, atoms_per_unit_cell)
+        for uc_idx in keys(sys.atoms)
+            if (uc_idx == (1,1,1) && i == j) #skip atom i0
+                continue
+            else
+                r_jk = position(sys, uc_idx, j)
 
-                r_jk_i0 = r_jk .- r_i0
-                r_jk_i0 = nearest_mirror(r_jk_i0, sys.box_sizes_SC)
-                dist = norm(r_jk_i0)
-                value += ustrip(ϕ₂(pot, dist, r_jk_i0, α, β))
+                r_i0_jk = r_i0 .- r_jk
+                r_i0_jk = nearest_mirror(r_i0_jk, sys.box_sizes_SC)
+                dist = norm(r_i0_jk)
+
+                value += ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))
             end
         end
     end

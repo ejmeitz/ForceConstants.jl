@@ -50,7 +50,7 @@ end
 # masses(sys::UnitCellSystem) = sys.atoms.mass
 mass(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].mass[atom_idx]
 # positions(sys::UnitCellSystem) = sys.atoms.position
-position(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].position[atom_idx]
+position(sys::UnitCellSystem, uc_idx::Tuple, atom_idx::Int) = sys.atoms[uc_idx].position[atom_idx]
 # charges(sys::UnitCellSystem) = sys.atoms.charge
 charge(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].charge[atom_idx]
 n_atoms(sys::UnitCellSystem) = length(sys.atoms)*length(sys.atoms[(1,1,1)])
