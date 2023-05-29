@@ -2,36 +2,10 @@ export dynamicalMatrix
 
 ### Unit Cell ###
 function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SVector{D}, tol) where D
-    atoms_per_unit_cell = n_atoms(sys)
+    atoms_per_unit_cell = n_atoms_per_uc(sys)
     dynmat = zeros(D*atoms_per_unit_cell, D*atoms_per_unit_cell)
 
-    #Calculate force-constants beforehand to enforce ASR (uses extra memory)
-    fc_matrix = calculate_force_constants(sys, pot)
-    dynamicalMatrix_UC_Helper!(sys, pot, dynmat, fc_matrix, k_point)
-
-    #Acoustic Sum Rule -- Loop D x D block matricies on diagonal of dynmat
-    for i in range(1, atoms_per_unit_cell) # index of block matrix
-        for α in range(1,D)
-            for β in range(1,D)
-                ii = D*(i-1) + α
-                jj = D*(i-1) + β # i == j because we're on diagonal
-                dynmat[ii,jj] = -1*sum(dynmat[ii, β:D:end])
-            end
-        end
-    end
-
-    #Mass Weight
-    for i in range(1, atoms_per_unit_cell)
-        for j in range(1, atoms_per_unit_cell)
-            for α in range(1,D)
-                for β in range(1,D)
-                    ii = D*(i-1) + α
-                    jj = D*(j-1) + β
-                    dynmat[ii,jj] /=  ustrip(sqrt(mass(sys,i)*mass(sys,j)))
-                end
-            end
-        end
-    end
+    dynamicalMatrix_UC_Helper!(sys, pot, dynmat, k_point)
 
     #Remove entries smaller than tol
     dynmat[abs.(dynmat) .< tol] .= 0.0
@@ -42,58 +16,7 @@ function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SV
     return dynmat
 end
 
-function calculate_force_constants(sys::UnitCellSystem{2}, pot::PairPotential)
-    atoms_per_unit_cell = n_atoms(sys)
-    N_atoms = atoms_per_unit_cell * prod(sys.num_unit_cells)
-    fc_matrix = zeros(2*N_atoms, 2*N_atoms)
-
-    for i in range(1,N_atoms)
-        for j in range(i+1,N_atoms)
-            for k1 in range(1,sys.num_unit_cells[1])
-                for k2 in range(1,sys.num_unit_cells[2])
-                    #Position of atom j in unitcell k
-                    kth_unitcell_origin = [sys.box_sizes[1]*(k1-1), sys.box_sizes[2]*(k2-1)]
-                    r_ik = kth_unitcell_origin .+ sys.atoms.position[i]
-                    r_jk = kth_unitcell_origin .+ sys.atoms.position[j]
-                    rᵢⱼ = r_ik .- r_jk
-                    rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes)
-                    dist = norm(rᵢⱼ)
-
-                    for α in range(1,2)
-                        for β in range(1,2)
-
-                            #Calculate dynmat index
-                            ii = 2*(i-1) + α
-                            jj = 2*(j-1) + β
-
-                            if dist < pot.r_cut
-                                fc_matrix[] = -ustrip(ϕ₂(pot, dist, rᵢⱼ, α, β))
-                                fc_matrix[] = fc_matrix[ii,jj]
-                            end
-
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    #Acoustic Sum Rule -- Loop D x D block matricies on diagonal of dynmat
-    for i in range(1, N_atoms) # index of block matrix
-        for α in range(1,2)
-            for β in range(1,2)
-                ii = 2*(i-1) + α
-                jj = 2*(i-1) + β # i == j because we're on diagonal
-                fc_matrix[ii,jj] = -1*sum(fc_matrix[ii, β:2:end])
-            end
-        end
-    end
-
-    return fc_matrix
-
-end
-
-function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{2}, pot::PairPotential, dynmat, fc_matrix, k_point)
+function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{2}, pot::PairPotential, dynmat, k_point)
     atoms_per_unit_cell = n_atoms(sys)
 
     #Loop block matricies above diagonal (not including diagonal)
@@ -110,6 +33,7 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{2}, pot::PairPotential, 
                     #Sum over all unit-cells
                     for k1 in range(1,sys.num_unit_cells[1])
                         for k2 in range(1,sys.num_unit_cells[2])
+
                             #Position of atom j in unitcell k
                             kth_unitcell_origin = [sys.box_sizes[1]*(k1-1), sys.box_sizes[2]*(k2-1)]
                             r_jk = kth_unitcell_origin .+ sys.atoms.position[j]
@@ -119,7 +43,7 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{2}, pot::PairPotential, 
                             dist = norm(r_jk_i0)
 
                             if dist < pot.r_cut
-                                dynmat[ii,jj] += fc_matrix[]*exp(im*dot(k_point, r_jk_i0))
+                                dynmat[ii,jj] += -ustrip(ϕ₂(pot, dist, r_jk_i0, α, β))*exp(im*dot(ustrip(k_point), ustrip(r_jk_i0)))
                             end
                         end
                     end
@@ -134,67 +58,15 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{2}, pot::PairPotential, 
     return dynmat
 end
 
-function calculate_force_constants(sys::UnitCellSystem{3}, pot::PairPotential)
-    atoms_per_unit_cell = n_atoms(sys)
-    N_atoms = atoms_per_unit_cell * prod(sys.num_unit_cells)
-    fc_matrix = zeros(3*N_atoms, 3*N_atoms)
 
-    for i in range(1,atoms_per_unit_cell)
-        for j in range(i+1,atoms_per_unit_cell)
-            for k1 in range(1,sys.num_unit_cells[1])
-                for k2 in range(1,sys.num_unit_cells[2])
-                    for k3 in range(1,sys.num_unit_cells[3])
-                        #Position of atom j in unitcell k
-                        kth_unitcell_origin = [sys.box_sizes[1]*(k1-1), sys.box_sizes[2]*(k2-1), sys.box_sizes[3]*(k3-1)]
-                        r_ik = kth_unitcell_origin .+ sys.atoms.position[i]
-                        r_jk = kth_unitcell_origin .+ sys.atoms.position[j]
-                        rᵢⱼ = r_ik .- r_jk
-                        rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes)
-                        dist = norm(rᵢⱼ)
-
-                        for α in range(1,3)
-                            for β in range(1,3)
-
-                                #Calculate dynmat index
-                                ii = 3*(i-1) + α
-                                jj = 3*(j-1) + β
-
-                                if dist < pot.r_cut
-                                    fc_matrix[] = -ustrip(ϕ₂(pot, dist, rᵢⱼ, α, β))
-                                    fc_matrix[] = fc_matrix[ii,jj]
-                                end
-
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    #Acoustic Sum Rule -- Loop D x D block matricies on diagonal of dynmat
-    for i in range(1, N_atoms) # index of block matrix
-        for α in range(1,3)
-            for β in range(1,3)
-                ii = 3*(i-1) + α
-                jj = 3*(i-1) + β # i == j because we're on diagonal
-                fc_matrix[ii,jj] = -1*sum(fc_matrix[ii, β:3:end])
-            end
-        end
-    end
-
-    return fc_matrix
-
-end
-
-function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, dynmat, fc_matrix, k_point)
-    atoms_per_unit_cell = n_atoms(sys)
+function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, dynmat, k_point)
+    atoms_per_unit_cell = n_atoms_per_uc(sys)
 
     #Loop block matricies above diagonal (not including diagonal)
     for i in range(1, atoms_per_unit_cell)
         # Position of atom i in base unitcell
-        r_i0 = sys.atoms.position[i]
-        for j in range(i+1, atoms_per_unit_cell)
+        r_i0 = sys.atoms[(1,1,1)].position[i]
+        for j in range(i, atoms_per_unit_cell) #Note not i + 1, ASR is done inside loop
             for α in range(1,3)
                 for β in range(1,3)
                     #Calculate dynmat index
@@ -202,28 +74,29 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, 
                     jj = 3*(j-1) + β
 
                     #Sum over all unit-cells
-                    for k1 in range(1,sys.num_unit_cells[1])
-                        for k2 in range(1,sys.num_unit_cells[2])
-                            for k3 in range(1,sys.num_unit_cells[3])
-                                #Position of atom j in unitcell k
-                                kth_unitcell_origin = [sys.box_sizes[1]*(k1-1), sys.box_sizes[2]*(k2-1), sys.box_sizes[3]*(k3-1)]
-                                r_jk = kth_unitcell_origin .+ sys.atoms.position[j]
+                    for uc_idx in keys(sys.atoms)
+                        #Position of atom j in unitcell k
+                        r_jk = sys.atoms[uc_idx].position[j]
 
-                                r_jk_i0 = r_jk .- r_i0
-                                r_jk_i0 = nearest_mirror(r_jk_i0, sys.box_sizes)
-                                dist = norm(r_jk_i0)
+                        r_jk_i0 = r_jk .- r_i0
+                        r_jk_i0 = nearest_mirror(r_jk_i0, sys.box_sizes_SC)
+                        dist = norm(r_jk_i0)
 
-                                if dist < pot.r_cut
-                                    dynmat[ii,jj] += fc_matrix[]*exp(im*dot(ustrip(k_point), ustrip(r_jk_i0)))
-                                end
+                        if dist < pot.r_cut
+                            if i != j
+                                ϕ₂_val = -1*ustrip(ϕ₂(pot, dist, r_jk_i0, α, β))
+                            else #ASR
+                                ϕ₂_val = ϕ₂_self(sys, pot, α, β)
                             end
+                            dynmat[ii,jj] += ϕ₂_val*exp(im*dot(ustrip(k_point), ustrip(r_jk_i0)))
                         end
+ 
                     end
-
+                    #Enforce symmetry & Mass Weighting
                     dynmat[ii,jj] /= ustrip(sqrt(mass(sys,i)*mass(sys,j)))
-                    dynmat[jj,ii] = dynmat[ii,jj]
+                    dynmat[jj,ii] = dynmat[ii,jj]                    
                 end
-             end
+            end
         end
     end
 
@@ -241,7 +114,7 @@ function dynamicalMatrix(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
         for j in range(i+1,N_atoms)
 
             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
-            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes)
+            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
             dist = norm(rᵢⱼ)
 
             for α in range(1,D)
@@ -301,6 +174,27 @@ function ϕ₂(pot, r_norm, rᵢⱼ, α, β)
     Φ′′ = potential_second_deriv(pot, r_norm)
     return (α == β) ? ((rᵢⱼ[α]*rᵢⱼ[β]/(r_norm^2))*(Φ′′ - (Φ′/r_norm))) + (Φ′/r_norm) :
                     ((rᵢⱼ[α]*rᵢⱼ[β]/(r_norm^2))*(Φ′′ - (Φ′/r_norm)))
+end
+
+#Not efficient but it works
+function ϕ₂_self(sys, pot, α, β)
+    atoms_per_unit_cell = n_atoms_per_uc(sys)
+    value = 0.0
+    for i in range(1, atoms_per_unit_cell)
+        r_i0 = sys.atoms[(1,1,1)].position[i]
+        for key in keys(sys.atoms)
+            if key != (1,1,1) #avoid div 0 errors
+                r_jk = sys.atoms[key].position[i]
+
+                r_jk_i0 = r_jk .- r_i0
+                r_jk_i0 = nearest_mirror(r_jk_i0, sys.box_sizes_SC)
+                dist = norm(r_jk_i0)
+                value += ustrip(ϕ₂(pot, dist, r_jk_i0, α, β))
+            end
+        end
+    end
+
+    return value
 end
 
 function nearest_mirror(r_ij, box_sizes)

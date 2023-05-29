@@ -16,27 +16,49 @@ end
 abstract type System end
 
 struct UnitCellSystem{D,L} <: System
-    atoms::StructArray{Atom}
+    atoms::Dict{Tuple,StructArray{Atom}}
     num_unit_cells::SVector{D,Int}
-    box_sizes::L
+    box_sizes_UC::L
+    box_sizes_SC::L
 end
 
 function UnitCellSystem(crystal::Crystal{D}, num_unit_cells::SVector{D,Int}) where D
     @assert sum(crystal.N_unit_cells) == D "Crystal must be a single unit cell"
 
+    unit_cell_indices = Iterators.product([1:num_unit_cells[i] for i in range(1,D)]...)
+
     positions = SimpleCrystals.position(crystal)
     masses = SimpleCrystals.atomic_mass(crystal)
     charges = getindex.(crystal.atoms, :charge)
-    atoms = StructArray{Atom}((position = positions,
-                               mass = masses,
-                               charge = charges))
     box_sizes = norm.(eachrow(bounding_box(crystal)))
-    return UnitCellSystem{D, typeof(box_sizes)}(atoms, num_unit_cells, box_sizes)
+    box_sizes_SC = norm.(num_unit_cells .* eachrow(bounding_box(crystal)))
+    #Generate data for all atoms in all unit cells
+    atoms = Dict()
+
+    for uc_idx in unit_cell_indices
+        positions_new = []
+        unitcell_origin = [box_sizes[1]*(uc_idx[1]-1), box_sizes[2]*(uc_idx[2]-1), box_sizes[3]*(uc_idx[3]-1)]
+        for i in range(1, length(crystal))
+            push!(positions_new, positions[i] .+ unitcell_origin)
+        end
+        atoms[uc_idx] = StructArray{Atom}((position = positions_new, mass = masses, charge = charges))
+    end
+
+    return UnitCellSystem{D, typeof(box_sizes)}(atoms, num_unit_cells, box_sizes, box_sizes_SC)
 end
+
+# masses(sys::UnitCellSystem) = sys.atoms.mass
+mass(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].mass[atom_idx]
+# positions(sys::UnitCellSystem) = sys.atoms.position
+position(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].position[atom_idx]
+# charges(sys::UnitCellSystem) = sys.atoms.charge
+charge(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].charge[atom_idx]
+n_atoms(sys::UnitCellSystem) = length(sys.atoms)*length(sys.atoms[(1,1,1)])
+n_atoms_per_uc(sys::UnitCellSystem) = length(sys.atoms[(1,1,1)])
 
 struct SuperCellSystem{D,L} <: System
     atoms::StructArray{Atom}
-    box_sizes::L
+    box_sizes_SC::L
 end
 
 function SuperCellSystem(crystal::Crystal{D}) where D
@@ -50,13 +72,13 @@ function SuperCellSystem(crystal::Crystal{D}) where D
     return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
 end
 
-masses(sys::System) = sys.atoms.mass
-mass(sys::System, i::Int) = sys.atoms.mass[i]
-positions(sys::System) = sys.atoms.position
-position(sys::System, i ::Int) = sys.atoms.position[i]
-charges(sys::System) = sys.atoms.charge
-charge(sys::System) = sys.atoms.charge[i]
-n_atoms(sys::System) = length(sys.atoms)
+masses(sys::SuperCellSystem) = sys.atoms.mass
+mass(sys::SuperCellSystem, i::Int) = sys.atoms.mass[i]
+positions(sys::SuperCellSystem) = sys.atoms.position
+position(sys::SuperCellSystem, i::Int) = sys.atoms.position[i]
+charges(sys::SuperCellSystem) = sys.atoms.charge
+charge(sys::SuperCellSystem, i::Int) = sys.atoms.charge[i]
+n_atoms(sys::SuperCellSystem) = length(sys.atoms)
 #######################################################
 
 abstract type Potential end
