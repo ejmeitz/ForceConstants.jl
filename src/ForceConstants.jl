@@ -9,6 +9,7 @@ using StructArrays
 using Unitful
 using StaticArrays
 using LinearAlgebra
+using Combinatorics
 
 # using ForwardDiff
 
