@@ -150,20 +150,19 @@ function dynamicalMatrix(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
             rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
             dist = norm(rᵢⱼ)
 
-            for α in range(1,D)
-                for β in range(1,D)
+            if dist < pot.r_cut
+                for α in range(1,D)
+                    for β in range(1,D)
 
-                    #Calculate dynmat index
-                    ii = D*(i-1) + α
-                    jj = D*(j-1) + β
+                        #Calculate dynmat index
+                        ii = D*(i-1) + α
+                        jj = D*(j-1) + β
 
-                    if dist < pot.r_cut
                         dynmat[ii,jj] = -ustrip(ϕ₂(pot, dist, rᵢⱼ, α, β))
                         dynmat[jj,ii] = dynmat[ii,jj]
                     end
-
                 end
-             end
+            end
         end
     end
 
@@ -219,16 +218,16 @@ function ϕ₂_self(sys, pot, α, β, r_i0, i)
     #Loop all atoms in system
     for uc_idx in keys(sys.atoms)
         for j in range(1, atoms_per_unit_cell)
-            if (uc_idx == (1,1,1) && i == j) #skip atom i0
-                value += 0.0
-            else
+            if (uc_idx != (1,1,1) && i != j) #skip atom i0
                 r_jk = position(sys, uc_idx, j)
 
                 r_i0_jk = r_i0 .- r_jk
                 r_i0_jk = nearest_mirror(r_i0_jk, sys.box_sizes_SC)
                 dist = norm(r_i0_jk)
-
-                value += ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))
+                
+                if dist < pot.r_cut
+                    value += ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))
+                end
             end
         end
     end
@@ -236,6 +235,7 @@ function ϕ₂_self(sys, pot, α, β, r_i0, i)
     return value
 end
 
+#could remove allocations here and just make it a ! function
 function nearest_mirror(r_ij, box_sizes)
     r_x = r_ij[1]; r_y = r_ij[2]; r_z = r_ij[3]
     L_x, L_y, L_z = box_sizes
