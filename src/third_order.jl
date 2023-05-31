@@ -107,7 +107,7 @@ function save_third_order(Ψ, N_atoms, D, outpath; filename = "third_order", fmt
     if fmt == :txt
         filepath = joinpath(outpath, filename*".txt")
         f = open(filepath, "w")
-        println(f,"$(N_atoms) atoms, Sum Ψ = $(round(ustrip(sum(Ψ)),sigdigits = 4)), Units: $(unit(Ψ[1,1,1]))")
+        println(f,"#$(N_atoms) atoms, Sum Ψ = $(round(ustrip(sum(Ψ)),sigdigits = 4)), Units: $(unit(Ψ[1,1,1]))")
         for i in range(1, N_atoms)
             for j in range(1, N_atoms)
                 for k in range(1,N_atoms)
