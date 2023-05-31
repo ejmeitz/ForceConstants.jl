@@ -1,11 +1,11 @@
-export third_order, save_third_order
+export third_order_IFC
 
 """
 Calculates analytical third order force constants for a pair potential (e.g. Lennard Jones).
 For pair potentials the only non-zero terms will be self-terms (e.g. i,i,i) and terms where
 i = j or j = k (e.g. 1,1,2).
 """
-function third_order(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
+function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
     N_atoms = n_atoms(sys)
     Ψ = zeros(D*N_atoms,D*N_atoms,D*N_atoms)
 
@@ -84,38 +84,6 @@ function ϕ₃(pot::PairPotential, r_norm, rᵢⱼ, α, β, γ)
 
 end
 
-function save_third_order(Ψ, N_atoms, D, outpath; filename = "third_order", fmt = :txt)
-    @assert (N_atoms*D) == size(Ψ)[1] "Incorrect dimensions"
-
-    if fmt == :txt
-        filepath = joinpath(outpath, filename*".txt")
-        f = open(filepath, "w")
-        println(f,"#$(N_atoms) atoms, Sum Ψ = $(round(ustrip(sum(Ψ)),sigdigits = 4)), Units: $(unit(Ψ[1,1,1]))")
-        for i in range(1, N_atoms)
-            for j in range(1, N_atoms)
-                for k in range(1,N_atoms)
-                    for α in range(1,D)
-                        for β in range(1,D)
-                            for γ in range(1,D)
-                                ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
-                                if ustrip(Ψ[ii,jj,kk]) != 0.0
-                                    println(f, "$i $α $j $β $k $γ $(ustrip(Ψ[ii,jj,kk]))")
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        close(f)
-    elseif fmt == :HDF5
-        throw(ArgumentError("Not implemented yet, $(fmt)"))
-    elseif fmt == :JLD2
-        throw(ArgumentError("Not implemented yet, $(fmt)"))
-    else
-        throw(ArgumentError("Invalid format, $(fmt)"))
-    end
-end
 
 #Just to vectorized version
 function ϕ₃_self(sys::SuperCellSystem, pot::PairPotential, i, α, β, γ)

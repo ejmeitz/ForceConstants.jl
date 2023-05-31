@@ -1,4 +1,4 @@
-export dynamicalMatrix, test
+export dynamicalMatrix, second_order_IFC, test
 
 ### Unit Cell ###
 function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SVector{D}, tol) where D
@@ -140,42 +140,9 @@ end
 
 function dynamicalMatrix(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
     N_atoms = n_atoms(sys)
-    dynmat = zeros(D*N_atoms,D*N_atoms)
 
-    #Loop block matricies above diagonal (not including diagonal)
-    for i in range(1,N_atoms)
-        for j in range(i+1,N_atoms)
-
-            rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
-            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
-            dist = norm(rᵢⱼ)
-
-            if dist < pot.r_cut
-                for α in range(1,D)
-                    for β in range(1,D)
-
-                        #Calculate dynmat index
-                        ii = D*(i-1) + α
-                        jj = D*(j-1) + β
-
-                        dynmat[ii,jj] = -ustrip(ϕ₂(pot, dist, rᵢⱼ, α, β))
-                        dynmat[jj,ii] = dynmat[ii,jj]
-                    end
-                end
-            end
-        end
-    end
-
-    #Acoustic Sum Rule -- Loop D x D block matricies on diagonal of dynmat
-    for i in range(1, N_atoms) # index of block matrix
-        for α in range(1,D)
-            for β in range(1,D)
-                ii = D*(i-1) + α
-                jj = D*(i-1) + β # i == j because we're on diagonal
-                dynmat[ii,jj] = -1*sum(dynmat[ii, β:D:end])
-            end
-        end
-    end
+    #reuse storage from IFC2 calculation
+    dynmat = second_order_IFC(sys, pot, tol, false)
 
     #Mass Weight
     for i in range(1, N_atoms)
@@ -197,6 +164,57 @@ function dynamicalMatrix(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     dynmat *= unit(pot.ϵ / pot.σ^2 / mass(sys,1))
 
     return dynmat
+end
+
+function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol, add_units) where D
+    N_atoms = n_atoms(sys)
+    IFC2 = zeros(D*N_atoms,D*N_atoms)
+
+    #Loop block matricies above diagonal (not including diagonal)
+    for i in range(1,N_atoms)
+        for j in range(i+1,N_atoms)
+
+            rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
+            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
+            dist = norm(rᵢⱼ)
+
+            if dist < pot.r_cut
+                for α in range(1,D)
+                    for β in range(1,D)
+
+                        #Calculate IFC2 index
+                        ii = D*(i-1) + α
+                        jj = D*(j-1) + β
+
+                        IFC2[ii,jj] = -ustrip(ϕ₂(pot, dist, rᵢⱼ, α, β))
+                        IFC2[jj,ii] = IFC2[ii,jj]
+                    end
+                end
+            end
+        end
+    end
+
+    #Acoustic Sum Rule -- Loop D x D block matricies on diagonal of IFC2
+    for i in range(1, N_atoms) # index of block matrix
+        for α in range(1,D)
+            for β in range(1,D)
+                ii = D*(i-1) + α
+                jj = D*(i-1) + β # i == j because we're on diagonal
+                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
+            end
+        end
+    end
+
+    #Remove entries smaller than tol
+    IFC2[abs.(IFC2) .< tol] .= 0.0
+
+    #Add final units to dynamical matrix
+    if add_units
+        IFC2 *= unit(pot.ϵ / pot.σ^2)
+    end
+
+    return IFC2
+
 end
 
 ### Utility Functions ###
