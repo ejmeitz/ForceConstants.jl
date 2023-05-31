@@ -46,34 +46,17 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
         end
     end
 
-    #Acoustic Sum Rule
+    #Acoustic Sum Rule (technically re-calculating the whole loop above here)
     Threads.@threads :dynamic for i in range(1,N_atoms)
         for α in range(1,D)
             for β in range(1,D)
                 for γ in range(1,D)
                     ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(i-1) + γ
-                    Ψ[ii,jj,kk] = -1*sum(Ψ[ii, β:D:end, γ:D:end])
-                    # Ψ[ii,jj,kk] = -1*sum(Ψ[α:D:end, jj, γ:D:end])
-                    # Ψ[ii,jj,kk] = -1*sum(Ψ[α:D:end, β:D:end, kk])
-                        Ψ[ii,jj,kk] = -1*sum(Ψ[ii, jj, γ:D:end])
+                    Ψ[ii,jj,kk] = ϕ₃_self(sys, pot, i, α, β, γ)
                 end
             end
         end
     end
-
-    #Acoustic Sum Rule -- slow version, just debugging
-    # Threads.@threads :dynamic for i in range(1,N_atoms)
-    #     for α in range(1,D)
-    #         for β in range(1,D)
-    #             for γ in range(1,D)
-    #                 ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(i-1) + γ
-    #                 Ψ[ii,jj,kk] = ϕ₃_self(sys, pot, i, α, β, γ)
-    #             end
-    #         end
-    #     end
-    # end
-
-
 
     #Apply tolerances
     Ψ[abs.(Ψ) .< tol] .= 0.0
@@ -96,7 +79,7 @@ function ϕ₃(pot::PairPotential, r_norm, rᵢⱼ, α, β, γ)
     Φ′′ = potential_second_deriv(pot, r_norm)
     Φ′′′ = potential_third_deriv(pot, r_norm)
 
-    return (rᵢⱼ[α]*rᵢⱼ[β]*rᵢⱼ[γ]/(r_norm^3))*(Φ′′′ - (3*Φ′′/r_norm) + (3*Φ′/(r_norm^2))) +
+    return (rᵢⱼ[α]*rᵢⱼ[β]*rᵢⱼ[γ]/(r_norm^3)) * (Φ′′′ - (3*Φ′′/r_norm) + (3*Φ′/(r_norm^2))) +
         ((rᵢⱼ[α]*δ(β,γ) + rᵢⱼ[β]*δ(γ,α) + rᵢⱼ[γ]*δ(α,β))/(r_norm^2))*(Φ′′ - (Φ′/r_norm))
 
 end
@@ -135,22 +118,22 @@ function save_third_order(Ψ, N_atoms, D, outpath; filename = "third_order", fmt
 end
 
 #Just to vectorized version
-# function ϕ₃_self(sys::SuperCellSystem, pot::PairPotential, i, α, β, γ)
-#     N_atoms = n_atoms(sys)
-#     value = 0.0
+function ϕ₃_self(sys::SuperCellSystem, pot::PairPotential, i, α, β, γ)
+    N_atoms = n_atoms(sys)
+    value = 0.0
     
-#     #Loop all atoms in system except atom i
-#     for j in range(1,N_atoms)
-#         if j != i
-#             r_ij = position(sys, i) .- position(sys, j)
-#             r_ij = nearest_mirror(r_ij, sys.box_sizes_SC)
-#             dist = norm(r_ij)
-#             if dist < pot.r_cut
-#                 value += ustrip(ϕ₃(pot, dist, r_ij, α, β, γ))
-#             end
-#         end
-#     end
+    #Loop all atoms in system except atom i
+    for j in range(1,N_atoms)
+        if j != i
+            r_ij = position(sys, i) .- position(sys, j)
+            r_ij = nearest_mirror(r_ij, sys.box_sizes_SC)
+            dist = norm(r_ij)
+            if dist < pot.r_cut
+                value += ustrip(ϕ₃(pot, dist, r_ij, α, β, γ))
+            end
+        end
+    end
 
-#     return value
+    return value
 
-# end
+end
