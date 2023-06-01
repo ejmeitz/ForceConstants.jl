@@ -1,4 +1,4 @@
-export dynamicalMatrix, second_order_IFC, test
+export dynamicalMatrix, second_order_IFC
 
 ### Unit Cell ###
 function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SVector{D}, tol) where D
@@ -17,13 +17,13 @@ function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SV
 end
 
 function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{2}, pot::PairPotential, dynmat, k_point)
-    atoms_per_unit_cell = n_atoms(sys)
+    atoms_per_unit_cell = n_atoms_per_uc(sys)
 
-    #Loop block matricies above diagonal (not including diagonal)
+    #Loop block matricies on and above diagonal
     for i in range(1, atoms_per_unit_cell)
         # Position of atom i in base unitcell
-        r_i0 = sys.atoms.position[i]
-        for j in range(1, atoms_per_unit_cell)
+        r_i0 = position(sys, (1,1), i)
+        for j in range(i, atoms_per_unit_cell)
             for α in range(1,2)
                 for β in range(1,2)
                     #Calculate dynmat index
@@ -31,27 +31,33 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{2}, pot::PairPotential, 
                     jj = 2*(j-1) + β
 
                     #Sum over all unit-cells
-                    for k1 in range(1,sys.num_unit_cells[1])
-                        for k2 in range(1,sys.num_unit_cells[2])
+                    for uc_idx in keys(sys.atoms)
+                        #Position of atom j in unitcell k
+                        r_jk = position(sys, uc_idx, j)
 
-                            #Position of atom j in unitcell k
-                            kth_unitcell_origin = [sys.box_sizes[1]*(k1-1), sys.box_sizes[2]*(k2-1)]
-                            r_jk = kth_unitcell_origin .+ sys.atoms.position[j]
+                        r_i0_jk = r_i0 .- r_jk
+                        r_i0_jk = nearest_mirror(r_i0_jk, sys.box_sizes_SC)
+                        dist = norm(r_i0_jk)
 
-                            r_jk_i0 = r_jk .- r_i0
-                            r_jk_i0 = nearest_mirror(r_jk_i0, sys.box_sizes)
-                            dist = norm(r_jk_i0)
-
-                            if dist < pot.r_cut
-                                dynmat[ii,jj] += -ustrip(ϕ₂(pot, dist, r_jk_i0, α, β))*exp(im*dot(ustrip(k_point), ustrip(r_jk_i0)))
+                        #Self terms
+                        if j == i && uc_idx == (1,1) #dist is 0 so no exp term
+                            dynmat[ii,jj] += ϕ₂_self(sys, pot, α, β, r_i0, i)
+                        elseif dist < pot.r_cut
+                            ϕ₂_val = -ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))
+                            exp_part = exp(-im*dot(ustrip(k_point), ustrip(r_i0_jk)))
+                            if imag(exp_part) < 1e-7
+                                dynmat[ii,jj] += ϕ₂_val*real(exp_part)
+                            else
+                                raise(error("Imaginary part too large: $(exp_part), power: $(-dot(ustrip(k_point), ustrip(r_i0_jk)))"))
                             end
                         end
-                    end
 
+                    end
+                    #Enforce symmetry & Mass Weighting
                     dynmat[ii,jj] /= ustrip(sqrt(mass(sys,i)*mass(sys,j)))
-                    dynmat[jj,ii] = dynmat[ii,jj]
+                    dynmat[jj,ii] = dynmat[ii,jj]                    
                 end
-             end
+            end
         end
     end
 
@@ -78,21 +84,22 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, 
                         #Position of atom j in unitcell k
                         r_jk = position(sys, uc_idx, j)
 
-                        r_jk_i0 = r_jk .- r_i0
                         r_i0_jk = r_i0 .- r_jk
-                        r_jk_i0 = nearest_mirror(r_jk_i0, sys.box_sizes_SC)
                         r_i0_jk = nearest_mirror(r_i0_jk, sys.box_sizes_SC)
-                        dist = norm(r_jk_i0)
+                        dist = norm(r_i0_jk)
 
-                        #Cross terms
-                        if dist < pot.r_cut && j != i
-                            ϕ₂_val = -ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))
-                            dynmat[ii,jj] += ϕ₂_val*exp(im*dot(ustrip(k_point), ustrip(r_jk_i0)))
                         #Self terms
-                        elseif uc_idx == (1,1,1) && j == i #dist is always 0 for self terms --> exp() term is 1
+                        if j == i && uc_idx == (1,1,1) #dist is 0 so no exp term
                             dynmat[ii,jj] += ϕ₂_self(sys, pot, α, β, r_i0, i)
+                        elseif dist < pot.r_cut
+                            exp_part = exp(-im*dot(ustrip(k_point), ustrip(r_i0_jk)))
+                            if imag(exp_part) < 1e-7
+                                dynmat[ii,jj] += -ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))*real(exp_part)
+                            else
+                                raise(error("Imaginary part too large: $(exp_part), power: $(-dot(ustrip(k_point), ustrip(r_i0_jk)))"))
+                            end
                         end
- 
+
                     end
                     #Enforce symmetry & Mass Weighting
                     dynmat[ii,jj] /= ustrip(sqrt(mass(sys,i)*mass(sys,j)))
@@ -103,37 +110,6 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, 
     end
 
     return dynmat
-end
-
-#Calculate element 1,1 at gamma point
-function test(sys::UnitCellSystem{3}, pot::PairPotential)
-    val = 0.0
-    k_point = [0.0,0.0,0.0]
-    α = 1
-    β = 1
-    i = 1
-    j = 1
-    r_i0 = position(sys, (1,1,1), i)
-
-    for uc_idx in keys(sys.atoms)
-        #Position of atom j in unitcell k
-        r_jk = position(sys, uc_idx, j)
-
-        r_i0_jk = r_i0 .- r_jk
-        r_i0_jk = nearest_mirror(r_i0_jk, sys.box_sizes_SC)
-        dist = norm(r_i0_jk)
-
-        #Cross terms
-        if dist < pot.r_cut && j != i
-            val += -ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))
-        #Self terms
-        elseif dist < pot.r_cut && uc_idx == (1,1,1) && j == i #dist is always 0 for self terms --> exp() term is 1
-            val += ϕ₂_self(sys, pot, α, β, r_i0, i)
-        end
-
-    end
-
-    return val/ustrip(sqrt(mass(sys,i)*mass(sys,j)))
 end
 
 ### Super Cell ###
@@ -229,14 +205,14 @@ function ϕ₂(pot::PairPotential, r_norm, r_jk_j′k′, α, β)
 end
 
 #Not efficient but it works -- reuse the ϕ₂ terms???
-function ϕ₂_self(sys, pot, α, β, r_i0, i)
+function ϕ₂_self(sys::UnitCellSystem{D}, pot::PairPotential, α, β, r_i0, i) where D
     atoms_per_unit_cell = n_atoms_per_uc(sys)
     value = 0.0
     
     #Loop all atoms in system
     for uc_idx in keys(sys.atoms)
         for j in range(1, atoms_per_unit_cell)
-            if (uc_idx != (1,1,1) && i != j) #skip atom i0
+            if !(uc_idx == tuple(ones(D)...) && i == j) #skip atom i0
                 r_jk = position(sys, uc_idx, j)
 
                 r_i0_jk = r_i0 .- r_jk

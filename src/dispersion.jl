@@ -17,6 +17,7 @@ function get_dispersion_points(sys::UnitCellSystem{3}, pot::PairPotential; direc
     end
 
     ω_all = Dict()
+    println(k_points)
     for k_point in k_points
         dynmat_uc = dynamicalMatrix(sys, pot, SVector{3}(k_point), tol)
         ω_sq = eigen(Hermitian(ustrip.(dynmat_uc))).values;
