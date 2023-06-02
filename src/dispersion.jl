@@ -1,7 +1,10 @@
 export get_dispersion_points
 
-function get_dispersion_points(sys::UnitCellSystem{3}, pot::PairPotential; directions = ([1.0, 0.0, 0.0],), tol = 1e-12, unit_system = :REAL)
+function get_dispersion_points(sys::UnitCellSystem{3}, pot::PairPotential; directions = ([1.0, 0.0, 0.0],);
+                                    group_by = :branch, tol = 1e-12, unit_system = :REAL)
     
+    @assert group_by ∈ [:branch, :k_point] "group_by can only be :branch or :k_point"
+
     Δk = (2*pi)./sys.box_sizes_SC
     left_zone_edges = (-pi./sys.box_sizes_UC) .+ Δk
     right_zone_edges = pi./sys.box_sizes_UC

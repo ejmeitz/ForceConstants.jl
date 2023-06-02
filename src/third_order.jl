@@ -6,6 +6,7 @@ For pair potentials the only non-zero terms will be self-terms (e.g. i,i,i) and 
 i = j or j = k (e.g. 1,1,2).
 """
 function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
+    @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
     N_atoms = n_atoms(sys)
     Ψ = zeros(D*N_atoms,D*N_atoms,D*N_atoms)
 
@@ -29,7 +30,7 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
             
             r .= nearest_mirror(r, sys.box_sizes_SC)
             dist = norm(r)
-            
+
             if dist < pot.r_cut
                 for α in range(1,D)
                     for β in range(1,D)

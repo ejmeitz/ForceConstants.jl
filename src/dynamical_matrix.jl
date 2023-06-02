@@ -2,8 +2,10 @@ export dynamicalMatrix, second_order_IFC
 
 ### Unit Cell ###
 function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SVector{D}, tol) where D
+    @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
+    
     atoms_per_unit_cell = n_atoms_per_uc(sys)
-    dynmat = zeros(D*atoms_per_unit_cell, D*atoms_per_unit_cell)
+    dynmat = zeros(ComplexF64, D*atoms_per_unit_cell, D*atoms_per_unit_cell)
 
     dynamicalMatrix_UC_Helper!(sys, pot, dynmat, k_point)
 
@@ -73,6 +75,7 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, 
         # Position of atom i in base unitcell
         r_i0 = position(sys, (1,1,1), i)
         for j in range(i, atoms_per_unit_cell)
+
             for α in range(1,3)
                 for β in range(1,3)
                     #Calculate dynmat index
@@ -92,12 +95,8 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, 
                         if j == i && uc_idx == (1,1,1) #dist is 0 so no exp term
                             dynmat[ii,jj] += ϕ₂_self(sys, pot, α, β, r_i0, i)
                         elseif dist < pot.r_cut
-                            exp_part = exp(-im*dot(ustrip(k_point), ustrip(r_i0_jk)))
-                            if imag(exp_part) < 1e-7
-                                dynmat[ii,jj] += -ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))*real(exp_part)
-                            else
-                                raise(error("Imaginary part too large: $(exp_part), power: $(-dot(ustrip(k_point), ustrip(r_i0_jk)))"))
-                            end
+                             dynmat[ii,jj] += -ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))*
+                                exp(-im*dot(ustrip(k_point), ustrip(r_i0_jk)))
                         end
 
                     end
@@ -115,6 +114,7 @@ end
 ### Super Cell ###
 
 function dynamicalMatrix(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
+    @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
     N_atoms = n_atoms(sys)
 
     #reuse storage from IFC2 calculation
