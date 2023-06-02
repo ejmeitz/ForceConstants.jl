@@ -29,17 +29,18 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
             
             r .= nearest_mirror(r, sys.box_sizes_SC)
             dist = norm(r)
-
-            for α in range(1,D)
-                for β in range(1,D)
-                    for γ in range(1,D)
-                        ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
-                        
-                        val = -ustrip(ϕ₃(pot, dist, r, α, β, γ))
-                        Ψ[ii,jj,kk] = val; Ψ[ii,kk,jj] = val
-                        Ψ[jj,kk,ii] = val; Ψ[jj,ii,kk] = val
-                        Ψ[kk,ii,jj] = val; Ψ[kk,jj,ii] = val
-                    
+            
+            if dist < pot.r_cut
+                for α in range(1,D)
+                    for β in range(1,D)
+                        for γ in range(1,D)
+                            ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
+    
+                            val = -ustrip(ϕ₃(pot, dist, r, α, β, γ))
+                            Ψ[ii,jj,kk] = val; Ψ[ii,kk,jj] = val
+                            Ψ[jj,kk,ii] = val; Ψ[jj,ii,kk] = val
+                            Ψ[kk,ii,jj] = val; Ψ[kk,jj,ii] = val
+                        end
                     end
                 end
             end
