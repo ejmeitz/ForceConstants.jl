@@ -45,8 +45,6 @@ function get_dispersion_points(sys::UnitCellSystem{3}, pot::PairPotential;
             end
 
             if unit_system == :REAL
-                println(k)
-                println(ω_all[k])
                 ω_all[k] = sqrt.(ω_all[k] .* 4184 .* 1000 .* 1e20)./(2*pi*1e12)
             else
                 throw(error("Only real units supported at this time"))
