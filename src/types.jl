@@ -69,6 +69,10 @@ function SuperCellSystem(crystal::Crystal{D}) where D
     return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
 end
 
+function SuperCellSystem(r0)
+
+end
+
 masses(sys::SuperCellSystem) = sys.atoms.mass
 mass(sys::SuperCellSystem, i::Int) = sys.atoms.mass[i]
 positions(sys::SuperCellSystem) = sys.atoms.position
