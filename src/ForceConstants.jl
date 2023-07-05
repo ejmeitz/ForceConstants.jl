@@ -14,6 +14,7 @@ using Combinatorics
 # using ForwardDiff
 
 include("types.jl")
+include("helper_funcs.jl")
 include("interactions.jl")
 include("dynamical_matrix.jl")
 include("third_order.jl")

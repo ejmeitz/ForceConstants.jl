@@ -1,4 +1,11 @@
-export dynamicalMatrix, second_order_IFC
+export dynamicalMatrix, second_order_IFC, get_modes
+
+struct SecondOrderMatrix{V,U,T}
+    values::Array{V,2}
+    units::U
+    tol::T
+end
+
 
 ### Unit Cell ###
 function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SVector{D}, tol) where D
@@ -13,9 +20,9 @@ function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SV
     dynmat[abs.(dynmat) .< tol] .= 0.0
 
     #Add final units to dynamical matrix
-    dynmat *= unit(pot.ϵ / pot.σ^2 / mass(sys,1))
+    dynmat_unit = unit(pot.ϵ / pot.σ^2 / mass(sys,1))
 
-    return dynmat
+    return SecondOrderMatrix(dynmat, dynmat_unit, tol)
 end
 
 function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{2}, pot::PairPotential, dynmat, k_point)
@@ -96,7 +103,7 @@ function dynamicalMatrix_UC_Helper!(sys::UnitCellSystem{3}, pot::PairPotential, 
                             dynmat[ii,jj] += ϕ₂_self(sys, pot, α, β, r_i0, i)
                         elseif dist < pot.r_cut
                              dynmat[ii,jj] += -ustrip(ϕ₂(pot, dist, r_i0_jk, α, β))*
-                                exp(-im*dot(ustrip(k_point), ustrip(r_i0_jk)))
+                                exp(-im*dot(ustrip.(k_point), ustrip.(r_i0_jk)))
                         end
 
                     end
@@ -118,7 +125,7 @@ function dynamicalMatrix(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     N_atoms = n_atoms(sys)
 
     #reuse storage from IFC2 calculation
-    dynmat = second_order_IFC(sys, pot, tol, false)
+    dynmat = second_order_IFC(sys, pot, tol)
 
     #Mass Weight
     for i in range(1, N_atoms)
@@ -127,22 +134,19 @@ function dynamicalMatrix(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
                 for β in range(1,D)
                     ii = D*(i-1) + α
                     jj = D*(j-1) + β
-                    dynmat[ii,jj] /=  ustrip(sqrt(mass(sys,i)*mass(sys,j)))
+                    dynmat.values[ii,jj] /=  ustrip(sqrt(mass(sys,i)*mass(sys,j)))
                 end
             end
         end
     end
 
-    #Remove entries smaller than tol
-    dynmat[abs.(dynmat) .< tol] .= 0.0
-
     #Add final units to dynamical matrix
-    dynmat *= unit(pot.ϵ / pot.σ^2 / mass(sys,1))
+    dynmat_unit = dynmat.units / unit(mass(sys,1))
 
-    return dynmat
+    return SecondOrderMatrix(dynmat.values, dynmat_unit, tol)
 end
 
-function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol, add_units) where D
+function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
     N_atoms = n_atoms(sys)
     IFC2 = zeros(D*N_atoms,D*N_atoms)
 
@@ -184,12 +188,7 @@ function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol, add_
     #Remove entries smaller than tol
     IFC2[abs.(IFC2) .< tol] .= 0.0
 
-    #Add final units to dynamical matrix
-    if add_units
-        IFC2 *= unit(pot.ϵ / pot.σ^2)
-    end
-
-    return IFC2
+    return SecondOrderMatrix(IFC2, unit(pot.ϵ / pot.σ^2), tol)
 
 end
 
@@ -229,27 +228,14 @@ function ϕ₂_self(sys::UnitCellSystem{D}, pot::PairPotential, α, β, r_i0, i)
     return value
 end
 
-#could remove allocations here and just make it a ! function
-function nearest_mirror(r_ij, box_sizes)
-    r_x = r_ij[1]; r_y = r_ij[2]; r_z = r_ij[3]
-    L_x, L_y, L_z = box_sizes
-    if r_x > L_x/2
-        r_x -= L_x
-    elseif r_x < -L_x/2
-        r_x += L_x
-    end
-        
-    if r_y > L_y/2
-        r_y -= L_y
-    elseif r_y < -L_y/2
-        r_y += L_y  
-    end
-        
-    if r_z > L_z/2
-        r_z -= L_z
-    elseif r_z < -L_z/2
-        r_z += L_z
-    end
-    
-    return [r_x,r_y,r_z] 
+
+### Get Modes ###
+function get_modes(dynmat::SecondOrderMatrix, num_rigid_translation = 3)
+
+    eig_stuff = eigen(Hermitian(dynmat.values))
+    freqs_sq = eig_stuff.values
+    idx_rt = sortperm(abs.(freqs_sq))
+    freqs_sq[idx_rt[1:3]] .= 0.0
+
+    return freqs_sq, eig_stuff.vectors
 end

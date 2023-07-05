@@ -23,8 +23,6 @@ function save_second_order(Φ, N_atoms, D, outpath; filename = "second_order", f
         end
 
         close(f)
-    elseif fmt == :HDF5
-        throw(ArgumentError("Not implemented yet, $(fmt)"))
     elseif fmt == :JLD2
         throw(ArgumentError("Not implemented yet, $(fmt)"))
     else
@@ -57,11 +55,15 @@ function save_third_order(Ψ, N_atoms, D, outpath; filename = "third_order", fmt
             end
         end
         close(f)
-    elseif fmt == :HDF5
-        throw(ArgumentError("Not implemented yet, $(fmt)"))
     elseif fmt == :JLD2
         throw(ArgumentError("Not implemented yet, $(fmt)"))
     else
         throw(ArgumentError("Invalid format, $(fmt)"))
     end
+end
+
+
+function save_third_order(Ψ::ThirdOrderSparse, N_atoms, D, outpath; filename = "third_order", fmt = :txt)
+
+
 end

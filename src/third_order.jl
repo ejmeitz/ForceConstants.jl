@@ -1,4 +1,24 @@
-export third_order_IFC
+export third_order_IFC, third_order_sparse,
+        mass_weight_sparsify_third_order, F3_val
+
+struct ThirdOrderMatrix{V,U,T}
+    values::Array{V,3}
+    units::U
+    tol::T
+end
+
+struct F3_val
+    i::Int32
+    j::Int32
+    k::Int32
+    val::Float32
+end
+
+struct ThirdOrderSparse{V,U,T}
+    values::Vector{F3_val}
+    units::U
+    tol::T
+end
 
 """
 Calculates analytical third order force constants for a pair potential (e.g. Lennard Jones).
@@ -64,13 +84,40 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     Ψ[abs.(Ψ) .< tol] .= 0.0
 
     #Give proper units
-    Ψ *= unit(pot.ϵ / pot.σ^3)
+    Ψ_unit = unit(pot.ϵ / pot.σ^3)
 
-    return Ψ
+    return ThirdOrderMatrix(Ψ, Ψ_unit, tol)
 end
 
-function third_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential) where D
 
+"""
+Mass weights the force constant matrix such that element i,j,k is divided by
+sqrt(m_i * m_j * m_k). This is useful when converting to modal coupling constants.
+The force constants are also returned in sparse format as a vector of values and indices.
+"""
+function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::AbstractVector)
+
+    mass_unit = unit(masses[1])
+    masses = ustrip.(masses)
+
+    N = size(Ψ)[1]
+    num_nonzero = sum(Ψ .!= 0.0)
+    Ψ_non_zero_mw = Vector{F3_val}(undef,(num_nonzero,))
+
+    count = 1
+    for i in range(1,N)
+        for j in range(1,N)
+            for k in range(1,N)
+                if F3[i,j,k] != 0
+                    Ψ_non_zero[count] = F3_val(i, j, k, Ψ[i,j,k]/(masses[i]*masses[j]*masses[k]))
+                    count += 1
+                end
+            end
+        end
+    end
+
+
+    return ThirdOrderSparse(Ψ_non_zero_mw, Ψ.units/mass_unit, Ψ.tol)
 end
 
 #Kronicker Delta
