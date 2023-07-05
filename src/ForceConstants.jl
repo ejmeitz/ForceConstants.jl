@@ -1,8 +1,5 @@
 module ForceConstants
 
-#TODO
-#Long term add support for non-pair potentials
-#Add separate function for ASR that works on all dimension of arrays
 
 using SimpleCrystals
 using StructArrays
@@ -10,14 +7,15 @@ using Unitful
 using StaticArrays
 using LinearAlgebra
 using Combinatorics
-# using FLoops
-# using ForwardDiff
+using JLD2
+
 
 include("types.jl")
 include("helper_funcs.jl")
 include("interactions.jl")
-include("dynamical_matrix.jl")
+include("second_order.jl")
 include("third_order.jl")
+include("fourth_order.jl")
 include("dispersion.jl")
 include("io.jl")
 

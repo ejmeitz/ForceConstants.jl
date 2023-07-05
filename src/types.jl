@@ -69,8 +69,12 @@ function SuperCellSystem(crystal::Crystal{D}) where D
     return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
 end
 
-function SuperCellSystem(r0)
-
+function SuperCellSystem(r0, masses, charges, box_sizes)
+    D = length(box_sizes[1])
+    atoms = StructArray{Atom}((position = r0,
+                               mass = masses,
+                               charge = charges))
+    return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
 end
 
 masses(sys::SuperCellSystem) = sys.atoms.mass
@@ -84,6 +88,7 @@ n_atoms(sys::SuperCellSystem) = length(sys.atoms)
 
 abstract type Potential end
 abstract type PairPotential <: Potential end
+abstract type ThreeBodyPotential <: Potential end
 
 ########################################################
 
