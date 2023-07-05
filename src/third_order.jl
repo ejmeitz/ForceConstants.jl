@@ -74,7 +74,7 @@ function third_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential) where D
 end
 
 #Kronicker Delta
-δ(x,y) = ==(x,y)
+δₖ(x,y) = ==(x,y)
 
 function ϕ₃(pot::PairPotential, r_norm, rᵢⱼ, α, β, γ)
     Φ′ = potential_first_deriv(pot, r_norm)
@@ -82,7 +82,7 @@ function ϕ₃(pot::PairPotential, r_norm, rᵢⱼ, α, β, γ)
     Φ′′′ = potential_third_deriv(pot, r_norm)
 
     return (rᵢⱼ[α]*rᵢⱼ[β]*rᵢⱼ[γ]/(r_norm^3)) * (Φ′′′ - (3*Φ′′/r_norm) + (3*Φ′/(r_norm^2))) +
-        ((rᵢⱼ[α]*δ(β,γ) + rᵢⱼ[β]*δ(γ,α) + rᵢⱼ[γ]*δ(α,β))/(r_norm^2))*(Φ′′ - (Φ′/r_norm))
+        ((rᵢⱼ[α]*δₖ(β,γ) + rᵢⱼ[β]*δₖ(γ,α) + rᵢⱼ[γ]*δₖ(α,β))/(r_norm^2))*(Φ′′ - (Φ′/r_norm))
 
 end
 

@@ -41,3 +41,7 @@ end
 function potential_third_deriv(pot::LJ, r)
     return -4*pot.ϵ*((12*13*14(pot.σ^12/r^15)) - (6*7*8(pot.σ^6/r^9)))
 end
+
+function potential_fourth_deriv(pot::LJ, r)
+    return 4*pot.ϵ*((12*13*14*15(pot.σ^12/r^16)) - (6*7*8*9(pot.σ^6/r^10)))
+end
