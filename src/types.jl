@@ -69,20 +69,30 @@ function SuperCellSystem(crystal::Crystal{D}) where D
     return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
 end
 
-function SuperCellSystem(r0, masses, charges, box_sizes)
-    D = length(box_sizes[1])
-    atoms = StructArray{Atom}((position = r0,
-                               mass = masses,
-                               charge = charges))
+function SuperCellSystem(r0, masses, box_sizes::AbstractVector; charges = zeros(length(masses))*u"q")
+    D = length(box_sizes)
+    atoms = StructArray{Atom}((position = r0, mass = masses, charge = charges))
     return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
 end
 
+function SuperCellSystem(df::DataFrame, masses::AbstractVector, box_sizes::AbstractVector,
+         x_col, y_col, z_col; charges = zeros(length(masses))*u"q")
+    D = length(box_sizes)
+    tmp = hcat(df[!,x_col], df[!,y_col], df[!, z_col])
+    r = [tmp[i,:] for i in range(1, size(tmp)[1])]
+    atoms = StructArray{Atom}((position = r, mass = masses, charge = charges))
+    return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
+end
+
+atomkeys(sys::SuperCellSystem) = keys(sys.atoms[1])
+hasatomkey(sys::SuperCellSystem, x::Symbol) = x ∈ atomkeys(sys)
 masses(sys::SuperCellSystem) = sys.atoms.mass
 mass(sys::SuperCellSystem, i::Int) = sys.atoms.mass[i]
 positions(sys::SuperCellSystem) = sys.atoms.position
 position(sys::SuperCellSystem, i::Int) = sys.atoms.position[i]
-charges(sys::SuperCellSystem) = sys.atoms.charge
-charge(sys::SuperCellSystem, i::Int) = sys.atoms.charge[i]
+positions_1D(sys::SuperCellSystem) = vcat(positions(sys))
+charges(sys::SuperCellSystem) = hasatomkey(sys, :charge) ? sys.atoms.charge : throw(ArgumentError("Charge is not a key"))
+charge(sys::SuperCellSystem, i::Int) =  hasatomkey(sys, :charge) ? sys.atoms.charge[i] : throw(ArgumentError("Charge is not a key"))
 n_atoms(sys::SuperCellSystem) = length(sys.atoms)
 #######################################################
 

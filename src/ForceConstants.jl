@@ -5,9 +5,11 @@ using SimpleCrystals
 using StructArrays
 using Unitful
 using StaticArrays
+using DataFrames
 using LinearAlgebra
 using Combinatorics
 using JLD2
+using CUDA; @assert CUDA.functional();
 
 
 include("types.jl")
