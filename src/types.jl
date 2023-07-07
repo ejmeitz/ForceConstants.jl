@@ -1,4 +1,4 @@
-export UnitCellSystem, SuperCellSystem,
+export UnitCellSystem, SuperCellSystem, Potential, PairPotential, ThreeBodyPotential,
     masses, mass, position, positions, charges, charge, n_atoms, n_atoms_per_uc
 
 struct Atom{P,C,M}
