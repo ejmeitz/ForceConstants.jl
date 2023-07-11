@@ -15,10 +15,13 @@ struct F3_val
     val::Float32
 end
 
-struct ThirdOrderSparse{V,U,T}
+struct ThirdOrderSparse{U,T}
     values::Vector{F3_val}
     units::U
     tol::T
+end
+function ThirdOrderSparse(values, units, tol)
+    return {typeof(units), typeof(tol)}(values, units, tol)
 end
 
 
