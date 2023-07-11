@@ -100,8 +100,8 @@ The force constants are also returned in sparse format as a vector of values and
 function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::AbstractVector)
 
     N_modes = size(Ψ)[1]
-    D = Int(N/length(masses))
-    N_atoms = N_modes/D
+    D = Int(N_modes/length(masses))
+    N_atoms = Int(N_modes/D)
 
     @assert D ∈ [1,2,3] 
 
