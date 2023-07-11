@@ -27,7 +27,7 @@ Parameters:
  - tol: Values less than tol will be set to 0
  - devices: List of GPUs to target
 """
-function to_mcc(Ψ_mw::ThirdOrderSparse, phi, tol, devices::Vector{CuDevice})
+function to_mcc(Ψ_mw::ThirdOrderSparse, phi, tol, devices::Vector{CuDevice} = nothing)
 
     N_modes = size(Ψ_mw)[1]
 
@@ -56,3 +56,50 @@ function to_mcc(Ψ_mw::ThirdOrderSparse, phi, tol, devices::Vector{CuDevice})
     return K3
 
 end
+
+# function to_mcc(Ψ_mw::ThirdOrderSparse)
+
+#     # (I, J, K, V) = findnz(B)
+
+#     #TODO: is it faster to just have arrays of indices vs using F3_val struct??
+#     #NOTE THIS ONLY DOES UPPER TRIANGLE OF K3
+
+#     K3_indices = with_replacement_combinations(range(1, N_modes), 3)
+#     for i in eachindex(Ψ_mw.values)
+#         begin
+#             for o in 1:N_modes
+#                 for n in 1:o
+#                     for m in 1:n
+#                         K3[m, n, o] += Ψ_mw[i].val * phi[Ψ_mw[i].i, m] * phi[Ψ_mw[i].j, n] * phi[Ψ_mw[i].k, o]
+#                     end
+#                 end
+#             end
+#         end
+#         synchronize()
+#     end
+
+#     for o in 1:N_modes
+#         for n in 1:o
+#             for m in 1:n
+#                 K3[m, n, o] = sum([(val * phi[i,m] * phi[j,n] * phi[k,o]) for _ in eachindex(Ψ_mw.values)]) 
+#             end
+#         end
+#     end
+
+
+
+# end
+
+# function mcc_kernel(Ψ_mw_values::Vector{F3_val})
+
+#     threads_per_block = blockDim().x
+#     idx = (blockIdx().x * threads_per_block) + threadIdx().x #one thread for every value in Ψ
+
+#     Ψ_ijk = Ψ_mw_values[idx].val
+
+#     shared = CuDynamicSharedArray(T, (threads_per_block,))
+
+#     K3[n,m,l] += Ψ_ijk.val * phi[Ψ_ijk.i,n] * phi[Ψ_ijk.j,m] * phi[Ψ_ijk.k,o]
+
+
+# end

@@ -5,6 +5,8 @@ struct ThirdOrderMatrix{V,U,T}
     units::U
     tol::T
 end
+Base.size(tom::ThirdOrderMatrix) = size(tom.values)
+Base.getindex(tom::ThirdOrderMatrix, i::Integer, j::Integer, k::Integer) = tom.values[i,j,k]
 
 struct F3_val
     i::Int32
@@ -18,6 +20,7 @@ struct ThirdOrderSparse{V,U,T}
     units::U
     tol::T
 end
+
 
 """
 Calculates analytical third order force constants for a pair potential (e.g. Lennard Jones).
@@ -100,7 +103,7 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
     masses = ustrip.(masses)
 
     N = size(Ψ)[1]
-    num_nonzero = sum(Ψ .!= 0.0)
+    num_nonzero = sum(Ψ.values .!= 0.0)
     Ψ_non_zero_mw = Vector{F3_val}(undef,(num_nonzero,))
 
     count = 1
