@@ -21,7 +21,7 @@ struct ThirdOrderSparse{U,T}
     tol::T
 end
 function ThirdOrderSparse(values, units, tol)
-    return {typeof(units), typeof(tol)}(values, units, tol)
+    return ThirdOrderSparse{typeof(units), typeof(tol)}(values, units, tol)
 end
 
 
