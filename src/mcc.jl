@@ -1,3 +1,5 @@
+export to_mcc
+
 """
 This file constains functions for converting force constants
 into modal coupling constants. These functions are extremely expensive
