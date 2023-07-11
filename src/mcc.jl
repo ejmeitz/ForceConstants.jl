@@ -29,13 +29,16 @@ Parameters:
  - tol: Values less than tol will be set to 0
  - devices: List of GPUs to target
 """
-function to_mcc(Ψ_mw_sparse::ThirdOrderSparse, phi, tol)#; devices::Vector{CuDevice} = nothing)
-
+function to_mcc(Ψ_mw_sparse::ThirdOrderSparse, phi, tol, device_id)#; devices::Vector{CuDevice} = nothing)
+    device!(device_id)
+    @info "Using $d to compute MCC3\n"
     N_modes = length(Ψ_mw_sparse)
 
     #Move F3 & phi to GPU
     cuF3_sparse = CuArray(Ψ_mw_sparse.values)
     cuPhi = CuArray(phi)
+
+
     
     K3 = zeros(N_modes,N_modes,N_modes)
     K3_indices = with_replacement_combinations(range(1,N_modes), 3)
@@ -93,6 +96,10 @@ end
 # end
 
 # function to_mcc2(Ψ_mw_sparse::ThirdOrderSparse, phi, tol)
+
+#     for el in Ψ_mw_sparse.values
+#         @cuda kernel2()
+#     end
 
 # end
 
