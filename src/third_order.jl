@@ -99,8 +99,9 @@ The force constants are also returned in sparse format as a vector of values and
 """
 function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::AbstractVector)
 
-    N = size(Ψ)[1]
+    N_modes = size(Ψ)[1]
     D = Int(N/length(masses))
+    N_atoms = N_modes/D
 
     @assert D ∈ [1,2,3] 
 
@@ -111,15 +112,15 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
     Ψ_non_zero_mw = Vector{F3_val}(undef,(num_nonzero,))
 
     count = 1
-    for i in range(1,N)
+    for i in range(1,N_atoms)
         for α in 1:D
-            for j in range(1,N)
+            for j in range(1,N_atoms)
                 for β in 1:D
-                    for k in range(1,N)
+                    for k in range(1,N_atoms)
                         for γ in 1:D
                             ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
                             if Ψ[ii,jj,kk] != 0
-                                Ψ_non_zero_mw[count] = F3_val(i, j, k, Ψ[ii,jj,kk]/(masses[i]*masses[j]*masses[k]))
+                                Ψ_non_zero_mw[count] = F3_val(ii, jj, kk, Ψ[ii,jj,kk]/(masses[i]*masses[j]*masses[k]))
                                 count += 1
                             end
                         end
