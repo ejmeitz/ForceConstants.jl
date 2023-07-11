@@ -111,7 +111,7 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
         for j in range(1,N)
             for k in range(1,N)
                 if Ψ[i,j,k] != 0
-                    Ψ_non_zero[count] = F3_val(i, j, k, Ψ[i,j,k]/(masses[i]*masses[j]*masses[k]))
+                    Ψ_non_zero_mw[count] = F3_val(i, j, k, Ψ[i,j,k]/(masses[i]*masses[j]*masses[k]))
                     count += 1
                 end
             end
