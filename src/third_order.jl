@@ -23,6 +23,7 @@ end
 function ThirdOrderSparse(values, units, tol)
     return ThirdOrderSparse{typeof(units), typeof(tol)}(values, units, tol)
 end
+Base.length(tos::ThirdOrderSparse) = length(tos.values)
 
 
 """

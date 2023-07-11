@@ -31,7 +31,7 @@ Parameters:
 """
 function to_mcc(Ψ_mw::ThirdOrderSparse, phi, tol)#; devices::Vector{CuDevice} = nothing)
 
-    N_modes = size(Ψ_mw)[1]
+    N_modes = length(Ψ_mw)
 
     #Move F3 & phi to GPU
     cuF3_sparse = CuArray(F3_sparse)
