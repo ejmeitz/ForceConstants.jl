@@ -31,7 +31,7 @@ Parameters:
 """
 function to_mcc(Ψ_mw_sparse::ThirdOrderSparse, phi, tol, device_id)#; devices::Vector{CuDevice} = nothing)
     device!(device_id)
-    @info "Using $d to compute MCC3\n"
+    @info "Using $(device_id) to compute MCC3\n"
     N_modes = length(Ψ_mw_sparse)
 
     #Move F3 & phi to GPU
