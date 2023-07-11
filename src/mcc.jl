@@ -29,7 +29,7 @@ Parameters:
  - tol: Values less than tol will be set to 0
  - devices: List of GPUs to target
 """
-function to_mcc(Ψ_mw::ThirdOrderSparse, phi, tol, devices::Vector{CuDevice} = nothing)
+function to_mcc(Ψ_mw::ThirdOrderSparse, phi, tol)#; devices::Vector{CuDevice} = nothing)
 
     N_modes = size(Ψ_mw)[1]
 
