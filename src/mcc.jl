@@ -32,22 +32,17 @@ Parameters:
 function to_mcc(Ψ_mw_sparse::ThirdOrderSparse, phi, tol, device_id)#; devices::Vector{CuDevice} = nothing)
     d = device!(device_id)
     @info "Using $d to compute MCC3\n"
-    N_modes = length(Ψ_mw_sparse)
+    N_modes = size(phi)[1]
 
     #Move F3 & phi to GPU
     cuF3_sparse = CuArray(Ψ_mw_sparse.values)
     cuPhi = CuArray(phi)
 
-    println("Data moved to GPU")
-
     K3 = zeros(N_modes,N_modes,N_modes)
     K3_indices = with_replacement_combinations(range(1,N_modes), 3)
     
-    println("K3 initialized")
-
     for idx in K3_indices
         m,n,o = idx
-        println(idx)
         val = @views gpu_k3_kernel(cuF3_sparse, cuPhi[:,m], cuPhi[:,n], cuPhi[:,o])
         K3[m,n,o] = val
         K3[m,o,n] = val
