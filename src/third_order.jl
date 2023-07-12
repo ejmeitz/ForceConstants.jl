@@ -105,7 +105,7 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
 
     N_modes = size(Ψ)[1]
     D = Int(N_modes/length(masses))
-    N_atoms = Int(N_modes/D)
+    N_atoms = length(masses)
 
     @assert D ∈ [1,2,3] 
 
@@ -124,7 +124,7 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
                         for γ in 1:D
                             ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
                             if Ψ[ii,jj,kk] != 0
-                                Ψ_non_zero_mw[count] = F3_val(ii, jj, kk, Ψ[ii,jj,kk]/(masses[i]*masses[j]*masses[k]))
+                                Ψ_non_zero_mw[count] = F3_val(ii, jj, kk, Ψ[ii,jj,kk]/sqrt(masses[i]*masses[j]*masses[k]))
                                 count += 1
                             end
                         end
