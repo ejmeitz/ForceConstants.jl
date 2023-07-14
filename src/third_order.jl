@@ -116,11 +116,11 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
     Ψ_non_zero_mw = Vector{F3_val}(undef,(num_nonzero,))
 
     count = 1
-    for i in range(1,N_atoms)
-        for α in 1:D
-            for j in range(1,N_atoms)
-                for β in 1:D
-                    for k in range(1,N_atoms)
+    for i in 1:N_atoms
+        for j in 1:N_atoms
+            for k in 1:N_atoms
+                for α in 1:D
+                    for β in 1:D
                         for γ in 1:D
                             ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
                             if Ψ[ii,jj,kk] != 0
@@ -133,6 +133,7 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
             end
         end
     end
+    @assert (count - 1) == num_nonzero
 
 
     return ThirdOrderSparse(Ψ_non_zero_mw, Ψ.units/mass_unit, Ψ.tol)

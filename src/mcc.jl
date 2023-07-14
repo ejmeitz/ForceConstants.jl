@@ -14,7 +14,6 @@ end
 
 ### Third Order Functions ###
 
-#TODO: Custom Kernel, kernel maybe should be all of the operations
 function gpu_k3_kernel(cuF3_sparse_mw, cuPhi1, cuPhi2, cuPhi3)
     f = (f3_data) -> f3_data.val * cuPhi1[f3_data.i] * cuPhi2[f3_data.j] * cuPhi3[f3_data.k]
    return mapreduce(f, +, cuF3_sparse_mw)
@@ -52,57 +51,50 @@ function to_mcc(Ψ_mw_sparse::ThirdOrderSparse, phi, tol, device_id)#; devices::
         K3[n,o,m] = val
     end
     
-    #Apply tolerances
+    #Apply tolerances -- this allocates maybe just loop?
     K3[abs.(K3) .< tol] .= 0.0
         
     return K3
 
 end
 
-# function to_mcc(Ψ_mw::ThirdOrderSparse)
 
-#     # (I, J, K, V) = findnz(B)
-
-#     #TODO: is it faster to just have arrays of indices vs using F3_val struct??
-#     #NOTE THIS ONLY DOES UPPER TRIANGLE OF K3
-
-#     K3_indices = with_replacement_combinations(range(1, N_modes), 3)
-#     for i in eachindex(Ψ_mw.values)
-#         begin
-#             for o in 1:N_modes
-#                 for n in 1:o
-#                     for m in 1:n
-#                         K3[m, n, o] += Ψ_mw[i].val * phi[Ψ_mw[i].i, m] * phi[Ψ_mw[i].j, n] * phi[Ψ_mw[i].k, o]
-#                     end
-#                 end
-#             end
-#         end
-#         synchronize()
-#     end
-
-#     for o in 1:N_modes
-#         for n in 1:o
-#             for m in 1:n
-#                 K3[m, n, o] = sum([(val * phi[i,m] * phi[j,n] * phi[k,o]) for _ in eachindex(Ψ_mw.values)]) 
-#             end
-#         end
-#     end
-
-
-
+# """
+# Takes flat version of MCC3 matrix and converts it back to an (N x N x N) symmetric tensor
+# using the tetrahedral numbers.
+# """
+# function unroll_MCC3(K3::AbstractVector, N_modes)
+#     K3 = zeros(N_modes, N_modes, N_modes)
 # end
 
+
+# #TODO: Do I need to transpose phi to get coalesce??
 # function to_mcc2(Ψ_mw_sparse::ThirdOrderSparse, phi, tol)
 
+#     N_modes = size(phi)[1]
+
+#     # Re-organize unqiue part of K3 into 1D
+#     len_K3 = length(with_replacement_combinations(1:N_modes, 3)) # N_modes choose 3
+#     K3_flat = CUDA.zeros(Float32, len_K3)
+  
 #     for el in Ψ_mw_sparse.values
-#         @cuda kernel2()
+#         @cuda @views kernel2(K3_flat, el.val, phi[el.i,:], phi[el.j,:], phi[el.k,:], N_modes, len_K3)
 #     end
 
 # end
 
-# function kernel2()
+# function to_1D_index(n,m,o, N_Modes)
 
+# function kernel2(K3_flat, Ψ_value, phi_i, phi_j, phi_k, N_modes, maxDim)
+#     n = blockIdx().x
+#     m = blockIdx().y
+#     o = blockIdx().z
 
+#     idx = to_1D_index(n, m, o, N_modes)
+
+#     if idx < maxDim #check divergence
+#         K3_flat[idx] += Ψ_value * phi_i[n] * phi_j[m] * phi_k[o]
+#     end
 # end
 
 # function mcc_kernel(Ψ_mw_values::Vector{F3_val})

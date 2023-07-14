@@ -34,6 +34,11 @@ using LinearAlgebra
     @test issubset(ω_THz_uc, ω_THz_sc)
 end
 
+@testset "Third Order" begin
+    
+    
+end
+
 
 # ω_THz = get_dispersion_points(sys_uc, pot; directions = ([1.0, 0.0, 0.0],), tol = 1e-12);
 
