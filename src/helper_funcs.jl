@@ -28,14 +28,14 @@ end
 nᵗʰ triangular number
 """
 function tri_num(n)
-    return Int(0.5*n*(n+1))
+    return Int32(0.5*n*(n+1))
 end
 
 """
 nᵗʰ tetrahedral number
 """
 function tetra_num(n)
-    return Int((n*(n+1)*(n+2))/6)
+    return Int32((n*(n+1)*(n+2))/6)
 end
 
 """
@@ -71,7 +71,6 @@ Returns the row & col of each element in the original matrix `A` and the
 flattened vector of values. Assumes rows index first element, cols second element.
 """
 function flatten_symmetric(A::Array{T,3}) where T
-    # @assert issymmetric(A) "A must be symmetric"
     M,N,O = size(A)
     @assert ((M == N) && (N == O)) "All matrix dimensions must have equal length"
     rows = zeros(Int32, tetra_num(N))
@@ -82,7 +81,6 @@ function flatten_symmetric(A::Array{T,3}) where T
         for y in 1:N
             for z in 1:O
                 if (z <= y) && (y <= x)
-                    @info "Mapping ($x,$y,$z) to $(idx)"
                     rows[idx] = x
                     cols[idx] = y
                     flattened[idx] = A[x, y, z]
@@ -112,7 +110,7 @@ in the un-flattened tensor. Returns the third index of the element
 in the un-flattened tensor.
 """
 function row_col_2_depth(row, col, idx_1D)
-    return (idx_1D - tetra_num(row-1)) - tri_num(col - 1)
+    return (idx_1D - tetra_num(row - 1)) - tri_num(col - 1)
 end
 
 # struct F2_val
