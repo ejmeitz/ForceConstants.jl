@@ -1,13 +1,15 @@
 
 
-@inbounds  function mcc3_kernel!(K3, rows, cols, Ψ_ijk, phi_i, phi_j, phi_k)
+@inbounds  function mcc3_kernel!(K3, rows, cols, Ψ_ijk, phi_i, phi_j, phi_k, maxIdx)
     i = ((blockIdx().x - 1) * blockDim().x) + threadIdx().x;
 
     idx1 = rows[i]
     idx2 = cols[i]
     idx3 =  row_col_2_depth(idx1, idx2, i) 
 
-    K3[i] += Ψ_ijk * phi_i[idx1] * phi_j[idx2] * phi_k[idx3]
+    if i <= maxIdx
+        K3[i] += Ψ_ijk * phi_i[idx1] * phi_j[idx2] * phi_k[idx3]
+    end
 
     return
 end
@@ -22,11 +24,16 @@ function mcc3(Ψ, phi, N_modes)
 
     # How to launch thread blocks such that phi is accessed in order??
     # need shenanegins with warp stuff and shared memory
+
+    #Do I index Ψ inside of kernel? will this help get better memory access patterns??
+
+    #Is the overhead from launching kerenls important??
+    
     for Ψ_ijk in Ψ
         phi_i = view(phi, Ψ_ijk.i, :) #this accesses in not-col major #TODO
         phi_j = view(phi, Ψ_ijk.j, :)
         phi_k = view(phi, Ψ_ijk.k, :)
-        @cuda threads=THREADS_PER_BLOCK blocks=cld(M,THREADS_PER_BLOCK) mcc3_kernel!(K3, rows, cols, Ψ_ijk, phi_i, phi_j, phi_k)
+        @cuda threads=THREADS_PER_BLOCK blocks=cld(M,THREADS_PER_BLOCK) mcc3_kernel!(K3, rows, cols, Ψ_ijk, phi_i, phi_j, phi_k, M)
     end
 
 end
