@@ -7,7 +7,6 @@
         idx1 = rows[thread_id]
         idx2 = cols[thread_id]
         idx3 =  row_col_2_depth(idx1, idx2, thread_id)
-        @cuprintln("Thread ID: $(thread_id), idx1 $idx1, idx2 $idx2 idx3 $idx3") 
         K3[thread_id] += Ψ_ijk * phi_i[idx1] * phi_j[idx2] * phi_k[idx3]
     end
 
@@ -45,7 +44,7 @@ function calculate_CUDA_dimension(N_modes, M)
     NUM_BLOCKS = cld(M, THREADS_PER_BLOCK)
 
     @assert NUM_BLOCKS < MAX_BLOCKS_PER_DIM_X
-    @assert NUM_BLOCKS*THREADS_PER_BLOCK > M
+    @assert (NUM_BLOCKS*THREADS_PER_BLOCK) >= M
 
     return THREADS_PER_BLOCK, NUM_BLOCKS
 end

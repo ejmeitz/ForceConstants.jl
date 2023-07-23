@@ -51,12 +51,10 @@ function flatten_symmetric(A::Matrix{T}) where T
     flattened = zeros(T, tri_num(N))
     idx = 1
     for row in 1:M
-        for col in 1:N
-            if col <= row
-                rows[idx] = row
-                flattened[idx] = A[row, col]
-                idx += 1
-            end
+        for col in 1:row
+            rows[idx] = row
+            flattened[idx] = A[row, col]
+            idx += 1
         end
     end
 
@@ -78,14 +76,12 @@ function flatten_symmetric(A::Array{T,3}) where T
     flattened = zeros(T, tetra_num(N))
     idx = 1
     for x in 1:M
-        for y in 1:N
-            for z in 1:O
-                if (z <= y) && (y <= x)
-                    rows[idx] = x
-                    cols[idx] = y
-                    flattened[idx] = A[x, y, z]
-                    idx += 1
-                end
+        for y in 1:x
+            for z in 1:y
+                rows[idx] = x
+                cols[idx] = y
+                flattened[idx] = A[x, y, z]
+                idx += 1
             end
         end
     end
@@ -96,21 +92,46 @@ function flatten_symmetric(A::Array{T,3}) where T
 end
 
 """
-Takes 1D index into flattened array and the row of the element
-in the un-flattened matrix. Returns the column of the element
+Takes 1D index into flattened array and the first index (row) of the element
+in the un-flattened matrix. Returns the second index (col) of the element
 in the un-flattened matrix.
 """
-function row_2_col(row, idx_1D)
-    return idx_1D - tri_num(row - 1)
+function row_2_col(idx1, idx_1D)
+    return idx_1D - tri_num(idx1 - 1)
 end
 
 """
-Takes 1D index into flattened array and the row & col of the element
+Takes 1D index into flattened array and the first and second indices of the element
 in the un-flattened tensor. Returns the third index of the element
 in the un-flattened tensor.
 """
-function row_col_2_depth(row, col, idx_1D)
-    return (idx_1D - tetra_num(row - 1)) - tri_num(col - 1)
+function row_col_2_depth(idx1, idx2, idx_1D)
+    return (idx_1D - tetra_num(idx1 - 1)) - tri_num(idx2 - 1)
+end
+
+
+function test_coordinate_generation(sz)
+
+    ## 2D
+    A = rand(sz,sz)
+    idx_flat = 1:tri_num(sz)
+    rows, A_flat = flatten_symmetric(A)
+    cols = row_2_col.(rows, 1:tri_num(sz))
+
+    for idx in idx_flat
+        @assert A_flat[idx] == A[rows[idx], cols[idx]]
+    end
+
+    ## 3D
+    B = rand(sz,sz,sz)
+    idx_flat = 1:tetra_num(sz)
+    rows, cols, B_flat = flatten_symmetric(B)
+    idx3 = row_col_2_depth.(rows, cols, 1:tetra_num(sz))
+
+    for idx in idx_flat
+        @assert B_flat[idx] == B[rows[idx], cols[idx], idx3[idx]]
+    end
+
 end
 
 # struct F2_val
