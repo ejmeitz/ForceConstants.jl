@@ -40,7 +40,7 @@ function mcc3(Ψ, cuPhi, N_modes)
 end
 
 function calculate_CUDA_dimension(N_modes, M)
-    THREADS_PER_BLOCK = min(N_modes, CUDA_MAX_THREADS_PER_BLOCK)
+    THREADS_PER_BLOCK = min(N_modes, CUDA_MAX_THREADS_PER_BLOCK) #TODO: nearest power of 2 less than min(N_modes, 1024)??
     NUM_BLOCKS = cld(M, THREADS_PER_BLOCK)
 
     @assert NUM_BLOCKS < MAX_BLOCKS_PER_DIM_X
