@@ -161,7 +161,7 @@ function mass_weight_third_order!(Ψ::ThirdOrderMatrix, masses::AbstractVector)
                         for γ in 1:D
                             ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
                             if Ψ[ii,jj,kk] != 0
-                                Ψ[ii,jj,kk] /= sqrt(masses[i]*masses[j]*masses[k])
+                                Ψ.values[ii,jj,kk] /= sqrt(masses[i]*masses[j]*masses[k])
                             end
                         end
                     end
