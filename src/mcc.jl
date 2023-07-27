@@ -1,7 +1,5 @@
 export mcc3
 
-export mcc3
-
 """
 Converts third order forces constants, `Ψ` into third order modal coupling constants (MCC). The
 parameter `block_size` specifies problem size when calculating the MCC. For example, if 
@@ -12,6 +10,7 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int
     device!(gpu_id)
 
     @assert size(phi)[1] % block_size == 0
+    @assert block_size > 0
 
     n_blocks_per_dim = Int(size(phi)[1] / block_size)
 
