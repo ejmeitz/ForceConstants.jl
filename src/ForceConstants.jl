@@ -9,6 +9,8 @@ using DataFrames
 using LinearAlgebra
 using Combinatorics
 using JLD2
+using TensorOperations
+using cuTENSOR
 using CUDA; @assert CUDA.functional();
 
 
