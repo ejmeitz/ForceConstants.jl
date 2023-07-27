@@ -8,24 +8,6 @@ end
 Base.size(tom::ThirdOrderMatrix) = size(tom.values)
 Base.getindex(tom::ThirdOrderMatrix, i::Integer, j::Integer, k::Integer) = tom.values[i,j,k]
 
-struct F3_val
-    i::Int32
-    j::Int32
-    k::Int32
-    val::Float32
-end
-
-struct ThirdOrderSparse{U,T}
-    values::Vector{F3_val}
-    units::U
-    tol::T
-end
-function ThirdOrderSparse(values, units, tol)
-    return ThirdOrderSparse{typeof(units), typeof(tol)}(values, units, tol)
-end
-Base.length(tos::ThirdOrderSparse) = length(tos.values)
-
-
 """
 Calculates analytical third order force constants for a pair potential (e.g. Lennard Jones).
 For pair potentials the only non-zero terms will be self-terms (e.g. i,i,i) and terms where
@@ -100,49 +82,6 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
 end
 
 
-"""
-Mass weights the force constant matrix such that element i,j,k is divided by
-sqrt(m_i * m_j * m_k). This is useful when converting to modal coupling constants.
-The force constants are also returned in sparse format as a vector of values and indices.
-"""
-function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::AbstractVector)
-
-    N_modes = size(Ψ)[1]
-    D = Int(N_modes/length(masses))
-    N_atoms = length(masses)
-
-    @assert D ∈ [1,2,3] 
-
-    mass_unit = unit(masses[1])
-    masses = ustrip.(masses)
-
-    num_nonzero = sum(Ψ.values .!= 0.0)
-    Ψ_non_zero_mw = Vector{F3_val}(undef,(num_nonzero,))
-
-    count = 1
-    for i in 1:N_atoms
-        for j in 1:N_atoms
-            for k in 1:N_atoms
-                for α in 1:D
-                    for β in 1:D
-                        for γ in 1:D
-                            ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
-                            if Ψ[ii,jj,kk] != 0
-                                Ψ_non_zero_mw[count] = F3_val(ii, jj, kk, Ψ[ii,jj,kk]/sqrt(masses[i]*masses[j]*masses[k]))
-                                count += 1
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    @assert (count - 1) == num_nonzero
-
-
-    return ThirdOrderSparse(Ψ_non_zero_mw, Ψ.units/mass_unit, Ψ.tol)
-end
-
 function mass_weight_third_order!(Ψ::ThirdOrderMatrix, masses::AbstractVector)
     N_modes = size(Ψ)[1]
     D = Int(N_modes/length(masses))
@@ -207,4 +146,70 @@ function ϕ₃_self(sys::SuperCellSystem, pot::PairPotential, i, α, β, γ)
 
     return value
 
+end
+
+
+
+
+### This code isn't as useful anymore
+
+struct F3_val
+    i::Int32
+    j::Int32
+    k::Int32
+    val::Float32
+end
+
+struct ThirdOrderSparse{U,T}
+    values::Vector{F3_val}
+    units::U
+    tol::T
+end
+function ThirdOrderSparse(values, units, tol)
+    return ThirdOrderSparse{typeof(units), typeof(tol)}(values, units, tol)
+end
+Base.length(tos::ThirdOrderSparse) = length(tos.values)
+
+
+"""
+Mass weights the force constant matrix such that element i,j,k is divided by
+sqrt(m_i * m_j * m_k). This is useful when converting to modal coupling constants.
+The force constants are also returned in sparse format as a vector of values and indices.
+"""
+function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::AbstractVector)
+
+    N_modes = size(Ψ)[1]
+    D = Int(N_modes/length(masses))
+    N_atoms = length(masses)
+
+    @assert D ∈ [1,2,3] 
+
+    mass_unit = unit(masses[1])
+    masses = ustrip.(masses)
+
+    num_nonzero = sum(Ψ.values .!= 0.0)
+    Ψ_non_zero_mw = Vector{F3_val}(undef,(num_nonzero,))
+
+    count = 1
+    for i in 1:N_atoms
+        for j in 1:N_atoms
+            for k in 1:N_atoms
+                for α in 1:D
+                    for β in 1:D
+                        for γ in 1:D
+                            ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
+                            if Ψ[ii,jj,kk] != 0
+                                Ψ_non_zero_mw[count] = F3_val(ii, jj, kk, Ψ[ii,jj,kk]/sqrt(masses[i]*masses[j]*masses[k]))
+                                count += 1
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    @assert (count - 1) == num_nonzero
+
+
+    return ThirdOrderSparse(Ψ_non_zero_mw, Ψ.units/mass_unit, Ψ.tol)
 end
