@@ -27,14 +27,14 @@ end
 """
 nᵗʰ triangular number
 """
-function tri_num(n)
+function tri_num(n::Int32)
     return Int32(0.5*n*(n+1))
 end
 
 """
 nᵗʰ tetrahedral number
 """
-function tetra_num(n)
+function tetra_num(n::Int32)
     return Int32((n*(n+1)*(n+2))/6)
 end
 

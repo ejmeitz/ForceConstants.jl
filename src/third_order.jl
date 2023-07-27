@@ -1,4 +1,4 @@
-export third_order_IFC, mass_weight_sparsify_third_order, F3_val
+export third_order_IFC, mass_weight_sparsify_third_order, mass_weight_third_order!, F3_val
 
 struct ThirdOrderMatrix{V,U,T}
     values::Array{V,3}
@@ -87,7 +87,11 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     end
 
     #Apply tolerances
-    Ψ[abs.(Ψ) .< tol] .= 0.0
+    for i in eachindex(Ψ)
+        if abs(Ψ[i]) < tol
+            Ψ[i] = 0.0
+        end
+    end
 
     #Give proper units
     Ψ_unit = unit(pot.ϵ / pot.σ^3)
@@ -137,6 +141,37 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
 
 
     return ThirdOrderSparse(Ψ_non_zero_mw, Ψ.units/mass_unit, Ψ.tol)
+end
+
+function mass_weight_third_order!(Ψ::ThirdOrderMatrix, masses::AbstractVector)
+    N_modes = size(Ψ)[1]
+    D = Int(N_modes/length(masses))
+    N_atoms = length(masses)
+
+    @assert D ∈ [1,2,3] 
+
+    mass_unit = unit(masses[1])
+    masses = ustrip.(masses)
+
+    for i in 1:N_atoms
+        for j in 1:N_atoms
+            for k in 1:N_atoms
+                for α in 1:D
+                    for β in 1:D
+                        for γ in 1:D
+                            ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
+                            if Ψ[ii,jj,kk] != 0
+                                Ψ[ii,jj,kk] /= sqrt(masses[i]*masses[j]*masses[k])
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    Ψ.units /= mass_unit
+    return Ψ
 end
 
 #Kronicker Delta

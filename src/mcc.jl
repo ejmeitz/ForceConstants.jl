@@ -1,62 +1,77 @@
-export to_mcc
+export mcc3
+
+export mcc3
 
 """
-This file constains functions for converting force constants
-into modal coupling constants. These functions are extremely expensive
-beyond second order and require GPU resources to be efficient.
+Converts third order forces constants, `Ψ` into third order modal coupling constants (MCC). The
+parameter `block_size` specifies problem size when calculating the MCC. For example, if 
+`block_size` is 100, the block MCC will be calculated in 100x100x100 blocks to save GPU memory.
+The `phi` matrix will be automatically truncated to adjust for this. Try to minimize block_size.
 """
+function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int; tol = 1e-12, gpu_id::Int)
+    device!(gpu_id)
 
-### Second Order Functions ###
-function to_mcc(dynmat::SecondOrderMatrix, num_rigid_translation = 3)
-    freqs_sq, _ = get_modes(dynmat, num_rigid_translation)
-    return freqs_sq
-end
+    @assert size(phi)[1] % block_size == 0
 
-### Third Order Functions ###
+    n_blocks_per_dim = Int(size(phi)[1] / block_size)
 
-function gpu_k3_kernel(cuF3_sparse_mw, cuPhi1, cuPhi2, cuPhi3)
-    f = (f3_data) -> f3_data.val * cuPhi1[f3_data.i] * cuPhi2[f3_data.j] * cuPhi3[f3_data.k]
-   return mapreduce(f, +, cuF3_sparse_mw)
-end
+    #Keep large storage on CPU
+    K3 = zeros(Float32,size(Ψ))
+    tmp = zeros(Float32, (block_size,block_size,block_size))
 
-"""
-Takes in sparse third order data that has already been mass weighted
+    #Only calculate lower half of K3
+    for i in 1:n_blocks_per_dim
+        for j in 1:i
+            for k in 1:j
+                dim1_range = (block_size*(i-1) + 1):(block_size*i)
+                dim2_range = (block_size*(j-1) + 1):(block_size*j)
+                dim3_range = (block_size*(k-1) + 1):(block_size*k)
+                K3_GPU_block =  mcc3_tensor(Ψ, phi, [dim1_range, dim2_range, dim3_range])
+                copyto!(tmp, K3_GPU_block)
 
-Parameters:
- - Ψ_mw: Sparse, mass-weighted third order force constants
- - phi: Eigenvectors (mode shapes) for the system
- - tol: Values less than tol will be set to 0
- - devices: List of GPUs to target
-"""
-function to_mcc(Ψ_mw_sparse::ThirdOrderSparse, phi, tol, device_id)#; devices::Vector{CuDevice} = nothing)
-    d = device!(device_id)
-    @info "Using $d to compute MCC3\n"
-    N_modes = size(phi)[1]
-
-    #Move F3 & phi to GPU
-    cuF3_sparse = CuArray(Ψ_mw_sparse.values)
-    cuPhi = CuArray(phi)
-
-    K3 = zeros(N_modes,N_modes,N_modes)
-    K3_indices = with_replacement_combinations(range(1,N_modes), 3)
-    
-    for idx in K3_indices
-        m,n,o = idx
-        val = @views gpu_k3_kernel(cuF3_sparse, cuPhi[:,m], cuPhi[:,n], cuPhi[:,o])
-        K3[m,n,o] = val
-        K3[m,o,n] = val
-        K3[o,n,m] = val
-        K3[o,m,n] = val
-        K3[n,m,o] = val
-        K3[n,o,m] = val
+                #Cant copy off GPU directly into slice :/
+                K3[dim1_range, dim2_range, dim3_range] = copyto!(K3[dim1_range, dim2_range, dim3_range],tmp)
+            end
+        end
     end
-    
-    #Apply tolerances -- this allocates maybe just loop?
-    K3[abs.(K3) .< tol] .= 0.0
-        
-    return K3
 
+    for i in eachindex(K3)
+        if abs(K3[i]) < tol
+            K3[i] = 0.0
+        end
+    end
+
+    return K3
 end
 
 
-# end
+function mcc3_tensor(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, idx_ranges::Vector{UnitRange{Int64}})
+
+    block_sizes = length.(idx_ranges)
+    K3 = CUDA.zeros(block_sizes...);
+
+    phi_block1 = view(phi, :, idx_ranges[1])
+    phi_block2 = view(phi, :, idx_ranges[2])
+    phi_block3 = view(phi, :, idx_ranges[3])
+
+    @tensor begin
+        K3[n,m,l] = Ψ[i,j,k] * phi_block1[i,n] * phi_block2[j,m] * phi_block3[k,l]
+    end
+
+    return K3
+end
+
+"""
+Converts third order forces constants, `Ψ` into third order modal coupling constants (MCC).
+Does not divide MCC calculation into smaller chunks. This might exhaust GPU memory.
+"""
+function mcc3_tensor(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2})
+
+    K3 = CUDA.zeros(size(Ψ));
+
+    @tensor begin
+        K3[n,m,l] = Ψ[i,j,k] * phi[i,n] * phi[j,m] * phi[k,l]
+    end
+
+    return K3
+end

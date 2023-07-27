@@ -17,7 +17,11 @@ function dynamicalMatrix(sys::UnitCellSystem{D}, pot::PairPotential, k_point::SV
     dynamicalMatrix_UC_Helper!(sys, pot, dynmat, k_point)
 
     #Remove entries smaller than tol
-    dynmat[abs.(dynmat) .< tol] .= 0.0
+    for i in eachindex(dynmat)
+        if abs(dynmat[i]) < tol
+            dynmat[i] = 0.0
+        end
+    end
 
     #Add final units to dynamical matrix
     dynmat_unit = unit(pot.ϵ / pot.σ^2 / mass(sys,1))
@@ -186,7 +190,11 @@ function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) wher
     end
 
     #Remove entries smaller than tol
-    IFC2[abs.(IFC2) .< tol] .= 0.0
+    for i in eachindex(IFC2)
+        if abs(IFC2[i]) < tol
+            IFC2[i] = 0.0
+        end
+    end
 
     return SecondOrderMatrix(IFC2, unit(pot.ϵ / pot.σ^2), tol)
 
