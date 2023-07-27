@@ -1,6 +1,6 @@
 export third_order_IFC, mass_weight_sparsify_third_order, mass_weight_third_order!, F3_val
 
-struct ThirdOrderMatrix{V,U,T}
+mutable struct ThirdOrderMatrix{V,U,T}
     values::Array{V,3}
     units::U
     tol::T
