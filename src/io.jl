@@ -1,6 +1,5 @@
 export save_second_order, save_third_order
 
-#CHANGE THIS TO USE MULTIPLE DISPATCH 
 
 function save_second_order(Φ::SecondOrderMatrix, N_atoms, D, outpath; filename = "second_order", fmt = :JLD2)
     @assert ((N_atoms*D) == size(Φ.values)[1] && (N_atoms*D) == size(Φ.values)[2]) "Incorrect dimensions"

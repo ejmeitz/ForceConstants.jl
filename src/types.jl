@@ -13,7 +13,7 @@ end
 
 #####################################################
 
-abstract type System end
+abstract type System end #TODO USE ATOMSBASE
 
 struct UnitCellSystem{D,L} <: System
     atoms::Dict{Tuple,StructArray{Atom}}
@@ -30,8 +30,8 @@ function UnitCellSystem(crystal::Crystal{D}, num_unit_cells::SVector{D,Int}) whe
     positions = SimpleCrystals.position(crystal)
     masses = SimpleCrystals.atomic_mass(crystal)
     charges = getindex.(crystal.atoms, :charge)
-    box_sizes = norm.(eachrow(bounding_box(crystal))) #TODO will break if I update SimpleCrystals
-    box_sizes_SC = norm.(num_unit_cells .* eachrow(bounding_box(crystal))) #TODO will break if I update SimpleCrystals
+    box_sizes = norm.(bounding_box(crystal))
+    box_sizes_SC = norm.(num_unit_cells .* bounding_box(crystal))
     #Generate data for all atoms in all unit cells
     atoms = Dict()
 
@@ -65,7 +65,7 @@ function SuperCellSystem(crystal::Crystal{D}) where D
     atoms = StructArray{Atom}((position = positions,
                                mass = masses,
                                charge = charges))
-    box_sizes = norm.(eachrow(bounding_box(crystal))) #TODO will break if I update SimpleCrystals
+    box_sizes = norm.(bounding_box(crystal))
     return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
 end
 

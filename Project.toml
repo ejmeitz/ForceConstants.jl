@@ -19,6 +19,7 @@ cuTENSOR = "011b41b2-24ef-40a8-b3eb-fa098493e9e1"
 [compat]
 julia = "1"
 TensorOperations = "4.0.0"
+SimpleCrystals = "0.1.6"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

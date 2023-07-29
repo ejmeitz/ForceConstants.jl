@@ -11,12 +11,12 @@ using Combinatorics
 using JLD2
 using TensorOperations
 using cuTENSOR
-using CUDA; @assert CUDA.functional();
+using CUDA #TODO: move to weakdep https://pkgdocs.julialang.org/v1/creating-packages/#Conditional-loading-of-code-in-packages-(Extensions)
 
 
 include("types.jl")
 include("helper_funcs.jl")
-include("interactions.jl")
+include("interactions/LennardJones.jl")
 include("second_order.jl")
 include("third_order.jl")
 include("fourth_order.jl")

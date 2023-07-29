@@ -24,115 +24,115 @@ function nearest_mirror(r_ij, box_sizes)
     return [r_x,r_y,r_z] 
 end
 
-"""
-nᵗʰ triangular number
-"""
-function tri_num(n::Int32)
-    return Int32(0.5*n*(n+1))
-end
+# """
+# nᵗʰ triangular number
+# """
+# function tri_num(n::Int32)
+#     return Int32(0.5*n*(n+1))
+# end
 
-"""
-nᵗʰ tetrahedral number
-"""
-function tetra_num(n::Int32)
-    return Int32((n*(n+1)*(n+2))/6)
-end
+# """
+# nᵗʰ tetrahedral number
+# """
+# function tetra_num(n::Int32)
+#     return Int32((n*(n+1)*(n+2))/6)
+# end
 
-"""
-Takes lower part of triangular matrix and flattens it into a 1D vector.
-Returns the row of each element in the original matrix `A` and the
-flattened vector of values.
-"""
-function flatten_symmetric(A::Matrix{T}) where T
-    # @assert issymmetric(A) "A must be symmetric"
-    M,N = size(A)
-    @assert M == N "All matrix dimensions must have equal length"
-    rows = zeros(Int32, tri_num(N))
-    flattened = zeros(T, tri_num(N))
-    idx = 1
-    for row in 1:M
-        for col in 1:row
-            rows[idx] = row
-            flattened[idx] = A[row, col]
-            idx += 1
-        end
-    end
+# """
+# Takes lower part of triangular matrix and flattens it into a 1D vector.
+# Returns the row of each element in the original matrix `A` and the
+# flattened vector of values.
+# """
+# function flatten_symmetric(A::Matrix{T}) where T
+#     # @assert issymmetric(A) "A must be symmetric"
+#     M,N = size(A)
+#     @assert M == N "All matrix dimensions must have equal length"
+#     rows = zeros(Int32, tri_num(N))
+#     flattened = zeros(T, tri_num(N))
+#     idx = 1
+#     for row in 1:M
+#         for col in 1:row
+#             rows[idx] = row
+#             flattened[idx] = A[row, col]
+#             idx += 1
+#         end
+#     end
 
-    @assert (idx-1) == length(flattened)
+#     @assert (idx-1) == length(flattened)
 
-    return rows, flattened
-end
+#     return rows, flattened
+# end
 
-"""
-Takes lower part of 3D tensor and flattens it into a 1D vector.
-Returns the row & col of each element in the original matrix `A` and the
-flattened vector of values. Assumes rows index first element, cols second element.
-"""
-function flatten_symmetric(A::Array{T,3}) where T
-    M,N,O = size(A)
-    @assert ((M == N) && (N == O)) "All matrix dimensions must have equal length"
-    rows = zeros(Int32, tetra_num(N))
-    cols = zeros(Int32, tetra_num(N))
-    flattened = zeros(T, tetra_num(N))
-    idx = 1
-    for x in 1:M
-        for y in 1:x
-            for z in 1:y
-                rows[idx] = x
-                cols[idx] = y
-                flattened[idx] = A[x, y, z]
-                idx += 1
-            end
-        end
-    end
+# """
+# Takes lower part of 3D tensor and flattens it into a 1D vector.
+# Returns the row & col of each element in the original matrix `A` and the
+# flattened vector of values. Assumes rows index first element, cols second element.
+# """
+# function flatten_symmetric(A::Array{T,3}) where T
+#     M,N,O = size(A)
+#     @assert ((M == N) && (N == O)) "All matrix dimensions must have equal length"
+#     rows = zeros(Int32, tetra_num(N))
+#     cols = zeros(Int32, tetra_num(N))
+#     flattened = zeros(T, tetra_num(N))
+#     idx = 1
+#     for x in 1:M
+#         for y in 1:x
+#             for z in 1:y
+#                 rows[idx] = x
+#                 cols[idx] = y
+#                 flattened[idx] = A[x, y, z]
+#                 idx += 1
+#             end
+#         end
+#     end
 
-    @assert (idx-1) == length(flattened)
+#     @assert (idx-1) == length(flattened)
 
-    return rows, cols, flattened
-end
+#     return rows, cols, flattened
+# end
 
-"""
-Takes 1D index into flattened array and the first index (row) of the element
-in the un-flattened matrix. Returns the second index (col) of the element
-in the un-flattened matrix.
-"""
-function row_2_col(idx1, idx_1D)
-    return idx_1D - tri_num(idx1 - 1)
-end
+# """
+# Takes 1D index into flattened array and the first index (row) of the element
+# in the un-flattened matrix. Returns the second index (col) of the element
+# in the un-flattened matrix.
+# """
+# function row_2_col(idx1, idx_1D)
+#     return idx_1D - tri_num(idx1 - 1)
+# end
 
-"""
-Takes 1D index into flattened array and the first and second indices of the element
-in the un-flattened tensor. Returns the third index of the element
-in the un-flattened tensor.
-"""
-function row_col_2_depth(idx1, idx2, idx_1D)
-    return (idx_1D - tetra_num(idx1 - 1)) - tri_num(idx2 - 1)
-end
+# """
+# Takes 1D index into flattened array and the first and second indices of the element
+# in the un-flattened tensor. Returns the third index of the element
+# in the un-flattened tensor.
+# """
+# function row_col_2_depth(idx1, idx2, idx_1D)
+#     return (idx_1D - tetra_num(idx1 - 1)) - tri_num(idx2 - 1)
+# end
 
 
-function test_coordinate_generation(sz)
+# function test_coordinate_generation(sz)
 
-    ## 2D
-    A = rand(sz,sz)
-    idx_flat = 1:tri_num(sz)
-    rows, A_flat = flatten_symmetric(A)
-    cols = row_2_col.(rows, 1:tri_num(sz))
+#     ## 2D
+#     A = rand(sz,sz)
+#     idx_flat = 1:tri_num(sz)
+#     rows, A_flat = flatten_symmetric(A)
+#     cols = row_2_col.(rows, 1:tri_num(sz))
 
-    for idx in idx_flat
-        @assert A_flat[idx] == A[rows[idx], cols[idx]]
-    end
+#     for idx in idx_flat
+#         @assert A_flat[idx] == A[rows[idx], cols[idx]]
+#     end
 
-    ## 3D
-    B = rand(sz,sz,sz)
-    idx_flat = 1:tetra_num(sz)
-    rows, cols, B_flat = flatten_symmetric(B)
-    idx3 = row_col_2_depth.(rows, cols, 1:tetra_num(sz))
+#     ## 3D
+#     B = rand(sz,sz,sz)
+#     idx_flat = 1:tetra_num(sz)
+#     rows, cols, B_flat = flatten_symmetric(B)
+#     idx3 = row_col_2_depth.(rows, cols, 1:tetra_num(sz))
 
-    for idx in idx_flat
-        @assert B_flat[idx] == B[rows[idx], cols[idx], idx3[idx]]
-    end
+#     for idx in idx_flat
+#         @assert B_flat[idx] == B[rows[idx], cols[idx], idx3[idx]]
+#     end
 
-end
+# end
 
 # struct F2_val
 #     i::Int32
