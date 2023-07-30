@@ -59,6 +59,10 @@ end
 
     println(sum(K3_actual .- K3_full))
     println(sum(K3_actual .- K3_blocked))
+    max_idx = argmax(K3_actual)
+    println(K3_actual[max_idx])
+    println(K3_full[max_idx])
+    println(K3_blocked[max_idx])
     @test isapprox(K3_actual, K3_full, atol = 1e-6)
     @test isapprox(K3_actual, K3_blocked, atol = 1e-6)
     
