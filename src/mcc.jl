@@ -39,6 +39,8 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int
 
     #Keep large storage on CPU
     K3_CPU = zeros(Float32, size(Ψ))
+    #Pre-allocate GPU storage to re-use
+    K3_GPU_block = CUDA.zeros(Float32, (block_size, block_size, block_size))
 
     #Only calculate lower half of K3
     for i in 1:n_blocks_per_dim
@@ -47,8 +49,8 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int
                 dim1_range = (block_size*(i-1) + 1):(block_size*i)
                 dim2_range = (block_size*(j-1) + 1):(block_size*j)
                 dim3_range = (block_size*(k-1) + 1):(block_size*k)
-                K3_GPU_block =  mcc3_blocked(Ψ, phi, [dim1_range, dim2_range, dim3_range])
-                copyto!(view(K3_CPU, dim1_range, dim2_range, dim3_range), K3_GPU_block)
+                K3_GPU_block =  mcc3_blocked!(K3_GPU_block, Ψ, phi, [dim1_range, dim2_range, dim3_range])
+                copyto!(K3_CPU[dim1_range, dim2_range, dim3_range], K3_GPU_block)
             end
         end
     end
@@ -84,10 +86,7 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int
 end
 
 
-function mcc3_blocked(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, idx_ranges::Vector{UnitRange{Int64}})
-
-    block_sizes = length.(idx_ranges)
-    K3 = CUDA.zeros(block_sizes...);
+function mcc3_blocked!(K3::CuArray{FLoat32, 3}, Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, idx_ranges::Vector{UnitRange{Int64}})
 
     phi_block1 = view(phi, :, idx_ranges[1])
     phi_block2 = view(phi, :, idx_ranges[2])
