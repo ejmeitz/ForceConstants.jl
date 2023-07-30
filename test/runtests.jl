@@ -53,8 +53,9 @@ end
     N_modes = length(freqs_sq) #should be 96
 
     block_size = 32
-    K3_full = mcc3(CuArray{Float32}(F3./sqrt(m^3)), CuArray{Float32}(phi))
-    K3_blocked = mcc3(CuArray{Float32}(F3./sqrt(m^3)), CuArray{Float32}(phi), block_size)
+    F3 ./= sqrt(m^3)
+    K3_full = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi))
+    K3_blocked = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi), block_size)
 
     println(sum(K3_actual .- K3_full))
     println(sum(K3_actual .- K3_blocked))
