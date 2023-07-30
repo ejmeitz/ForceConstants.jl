@@ -58,7 +58,8 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int
     for i in 1:n_blocks_per_dim
         for j in 1:i
             for k in 1:j
-                idx_combos = Iterators.drop(multiset_permutations([i,j,k],3),1)
+                idx_combos = multiset_permutations([i,j,k], 3)
+                filter!(p -> p != [i,j,k] , collect(idx_combos))
                 dim1_range_orig = (block_size*(i-1) + 1):(block_size*i)
                 dim2_range_orig = (block_size*(j-1) + 1):(block_size*j)
                 dim3_range_orig = (block_size*(k-1) + 1):(block_size*k)

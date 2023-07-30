@@ -47,11 +47,6 @@ end
 
 @testset "MCC3 Blocked" begin
     
-    #Code assumes first element is the one that got passed in
-    @test collect(multiset_permutations([1,2,3],3))[1] == [1,2,3]
-    @test collect(multiset_permutations([1,2,2],3))[1] == [1,2,2]
-    @test collect(multiset_permutations([:i,:k,:i],3))[1] == [:i,:k,:i]
-
     #Load test dataset
     phi, dynmat, F3, K3_actual, freqs_sq = load("./test_data/TEP.jld2", "phi", "dynmat", "F3", "K3", "freqs_sq")
     N_modes = length(freqs_sq) #should be 96
