@@ -52,8 +52,8 @@ end
     N_modes = length(freqs_sq) #should be 96
 
     n_blocks = 3
-    K3_full = mcc3(CuArray(F3), CuArray(phi))
-    K3_blocked = mcc3(CuArray(F3), CuArray(phi),n_blocks)
+    K3_full = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi))
+    K3_blocked = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi),n_blocks)
 
     @test isapprox(K3_actual, K3_full, atol = 1e-6)
     @test isapprox(K3_actual, K3_blocked, atol = 1e-6)
