@@ -86,7 +86,7 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int
 end
 
 
-function mcc3_blocked!(K3::CuArray{FLoat32, 3}, Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, idx_ranges::Vector{UnitRange{Int64}})
+function mcc3_blocked!(K3::CuArray{Float32, 3}, Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, idx_ranges::Vector{UnitRange{Int64}})
 
     phi_block1 = view(phi, :, idx_ranges[1])
     phi_block2 = view(phi, :, idx_ranges[2])
