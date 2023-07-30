@@ -34,8 +34,23 @@ using LinearAlgebra
     @test issubset(ω_THz_uc, ω_THz_sc)
 end
 
-@testset "Third Order" begin
+@testset "MCC3 Blocked" begin
     
+    #Code assumes first element is the one that got passed in
+    @test collect(multiset_permutations([1,2,3],3))[1] == [1,2,3]
+    @test collect(multiset_permutations([1,2,2],3))[1] == [1,2,2]
+    @test collect(multiset_permutations([:i,:k,:i],3))[1] == [:i,:k,:i]
+
+    #Load test dataset
+    phi, dynmat, F3, K3_actual, freqs_sq = load("./test_data/TEP.jld2", "phi", "dynmat", "F3", "K3", "freqs_sq")
+    N_modes = length(freqs_sq) #should be 96
+
+    n_blocks = 3
+    K3_full = mcc3(CuArray(F3), CuArray(phi))
+    K3_blocked = mcc3(CuArray(F3), CuArray(phi),n_blocks)
+
+    @test isapprox(K3_actual, K3_full, atol = 1e-6)
+    @test isapprox(K3_actual, K3_blocked, atol = 1e-6)
     
 end
 
