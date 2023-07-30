@@ -3,9 +3,20 @@ using ForceConstants
 using SimpleCrystals
 using StaticArrays
 using LinearAlgebra
+using CUDA
+using Combinatorics
+using JLD2
 
-
-# write tests here
+# Allow CUDA device to be specified
+const DEVICE = get(ENV, "DEVICE", "0")
+run_gpu_tests = false
+if CUDA.functional()
+    device!(parse(Int, DEVICE))
+    run_gpu_tests = true
+    @info "The GPU tests will be run on device $DEVICE"
+else
+    @warn "The GPU tests will not be run as a CUDA-enabled device is not available"
+end
 
 @testset "Supercell vs Unitcell" begin
     
