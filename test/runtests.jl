@@ -53,7 +53,7 @@ end
 
     block_size = 32
     K3_full = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi))
-    K3_blocked = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi), n_blocks)
+    K3_blocked = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi), block_size)
 
     @test isapprox(K3_actual, K3_full, atol = 1e-6)
     @test isapprox(K3_actual, K3_blocked, atol = 1e-6)
