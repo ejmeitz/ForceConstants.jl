@@ -56,6 +56,7 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int
     end
 
     #Enforce symmetry of K3
+    #TODO THIS IS BROKEN SOMEHOW
     for i in 1:n_blocks_per_dim
         for j in 1:i
             for k in 1:j
