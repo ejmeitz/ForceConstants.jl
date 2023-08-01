@@ -45,7 +45,7 @@ end
     @test issubset(ω_THz_uc, ω_THz_sc)
 end
 
-@testset "MCC3 Blocked" begin
+@testset "MCC3, MCC3 Blocked" begin
     
     #Load test dataset
     m = 39.95
@@ -57,12 +57,8 @@ end
     K3_full = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi))
     K3_blocked = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi), block_size)
 
-    println(sum(K3_actual .- K3_full))
-    println(sum(K3_actual .- K3_blocked))
     max_idx = argmax(K3_actual)
-    println(K3_actual[max_idx])
-    println(K3_full[max_idx])
-    println(K3_blocked[max_idx])
+
     @test isapprox(K3_actual, K3_full, atol = 1e-6)
     @test isapprox(K3_actual, K3_blocked, atol = 1e-6)
     
