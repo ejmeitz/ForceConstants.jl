@@ -1,4 +1,6 @@
-export save_second_order, save_third_order
+export save_second_order, save_third_order,
+        parse_TDEP_second_order, parse_TDEP_second_order,
+        parse_ModeCode_third_order, parse_LAMMPS_dynmat, parse_LAMMPS_third_order
 
 
 function save_second_order(Φ::SecondOrderMatrix, N_atoms, D, outpath; filename = "second_order", fmt = :JLD2)
@@ -72,4 +74,203 @@ function save_third_order(Ψ::ThirdOrderSparse, N_atoms, D, outpath; filename = 
         throw(ArgumentError("Invalid format, $(fmt)"))
     end
 
+end
+
+#### Methods to load force constants from other libraries
+
+"""
+Parses the TDEP format for second order force cosntants. 
+
+This function assumes that the force constants were calculated for the supercell or that
+the unit-cell was remapped to the supercell with remap_forceconstants.
+"""
+function parse_TDEP_second_order(ifc_path::String, N_modes, energy_units::Symbol = :REAL)
+
+    Φ = zeros(N_modes, N_modes)
+
+    open(ifc_path, "r") do f
+    
+        #First 2 lines are header
+        N_atoms = parse(Int64,split(strip(readline(f)))[1])
+        @assert 3*N_atoms == N_modes "Cannot handle non-monatomic case"
+        r_cut = parse(Float64,split(strip(readline(f)))[1])
+    
+        #Next lines gives num neighbors of atom in unit cell we are looking at
+        Φ_block = zeros(3,3)
+        for i in 1:N_atoms
+            n_neighbors, base_atom_idx_uc = parse.(Int64,split(strip(readline(f)))[[1,end-1]])
+            
+            for j in 1:n_neighbors
+                other_atom_idx_uc = parse(Int64,split(strip(readline(f)))[1])
+                lattice_vec = parse.(Float64,split(strip(readline(f)))) #Dont think this is useful?
+
+                Φ_block[1,:] .= parse.(Float64,split(strip(readline(f)))) 
+                Φ_block[2,:] .= parse.(Float64,split(strip(readline(f))))
+                Φ_block[3,:] .= parse.(Float64,split(strip(readline(f))))
+
+                Φ[3*(base_atom_idx_uc - 1) + 1 : 3*base_atom_idx_uc,
+                  3*(other_atom_idx_uc - 1) + 1 : 3*other_atom_idx_uc] .= Φ_block
+
+            end
+        end
+    end
+
+    if energy_units == :REAL
+        Φ .*= 23.060541945
+        units = u"kcal * mol^-1 * Å^-2"
+    elseif energy_units == :METAL
+        units = u"eV * Å^-2"
+    else
+        throw(ArgumentError("Unsupported unit type: $(energy_units)"))
+    end
+
+    return SecondOrderMatrix(Φ, units, 0.0)
+
+end
+
+"""
+Parses the TDEP format for third order force cosntants. 
+
+This function assumes that the force constants were calculated for the supercell or that
+the unit-cell was remapped to the supercell with remap_forceconstants.
+"""
+function parse_TDEP_thrid_order(ifc_path::String, N_modes, energy_units = :REAL)
+    Ψ = zeros(N_modes, N_modes, N_modes)
+
+    open(ifc_path, "r") do f
+    
+        #First 2 lines are header
+        N_atoms = parse(Int64,split(strip(readline(f)))[1])
+        @assert 3*N_atoms == N_modes "Cannot handle non-monatomic case"
+        r_cut = parse(Float64,split(strip(readline(f)))[1])
+    
+        #Next lines gives num neighbors of atom in unit cell we are looking at
+        Ψ_block = zeros(3,3,3)
+        for i in 1:N_atoms
+            n_triplets, base_atom_idx_uc = parse.(Int64,split(strip(readline(f)))[[1,end-2]])
+            
+            for j in 1:n_triplets
+                i = parse(Int64,split(strip(readline(f)))[1])
+                j = parse(Int64,split(strip(readline(f)))[1])
+                k = parse(Int64,split(strip(readline(f)))[1])
+                lattice_vec = parse.(Float64,split(strip(readline(f)))) #Dont think this is useful?
+                lattice_vec = parse.(Float64,split(strip(readline(f)))) #Dont think this is useful?
+                lattice_vec = parse.(Float64,split(strip(readline(f)))) #Dont think this is useful?
+
+                Ψ_block[1,1,:] .= parse.(Float64,split(strip(readline(f)))) 
+                Ψ_block[1,2,:] .= parse.(Float64,split(strip(readline(f))))
+                Ψ_block[1,3,:] .= parse.(Float64,split(strip(readline(f))))
+
+                Ψ_block[2,1,:] .= parse.(Float64,split(strip(readline(f)))) 
+                Ψ_block[2,2,:] .= parse.(Float64,split(strip(readline(f))))
+                Ψ_block[2,3,:] .= parse.(Float64,split(strip(readline(f))))
+
+                Ψ_block[3,1,:] .= parse.(Float64,split(strip(readline(f)))) 
+                Ψ_block[3,2,:] .= parse.(Float64,split(strip(readline(f))))
+                Ψ_block[3,3,:] .= parse.(Float64,split(strip(readline(f))))
+
+                Ψ[3*(i - 1) + 1 : 3*i,
+                  3*(j - 1) + 1 : 3*j,
+                  3*(k - 1) + 1 : 3*k] .= Ψ_block
+
+            end
+        end
+    end
+
+    if energy_units == :REAL
+        Ψ .*= 23.060541945
+        units = u"kcal * mol^-1 * Å^-3"
+    elseif energy_units == :METAL
+        units = u"eV * Å^-3"
+    else
+        throw(ArgumentError("Unsupported unit type: $(energy_units)"))
+    end
+
+    return ThirdOrderMatrix(Ψ, units, 0.0)
+end
+
+function parse_ModeCode_third_order(path::String, N_atoms::Int, unit_system::Symbol = :REAL)
+    #Convert Ryd/bohr^3 to match system units
+    conversion_factor = 1.0
+    if unit_system == :REAL
+        # 1.889 bohr = 1 Å
+        # 313.75470835207074 kcal/mol = 1 Ryd
+        units = u"kcal * mol^-1 * Å^-3"
+        conversion_factor = (1.889725988*1.889725988*1.889725988)*313.75470835207074
+    elseif unit_system == :METAL
+        # 13.60569301 eV = 1 Ryd
+        units = u"eV * Å^-3"
+        conversion_factor = (1.889725988*1.889725988*1.889725988)*13.60569301
+    else
+        throw(ArgumentError("Unsupported unit_system: $(unit_system)"))
+    end
+
+    F3_file_contents = readdlm(path);
+
+    F3 = zeros((3*N_atoms, 3*N_atoms, 3*N_atoms))
+    #first line is number of F3
+    for line in range(2,size(F3_file_contents)[1])
+        i, α, j, β, k, γ, data = F3_file_contents[line,:]
+        F3[Int((3*(i-1)) + α), Int((3*(j-1)) + β), Int((3*(k-1)) + γ)] = data*conversion_factor
+    end
+    return ThirdOrderMatrix(F3, units, 0.0)
+end
+
+"""
+Parses output from LAMMPS `dynamical_matrix` command in the PHONON package
+"""
+function parse_LAMMPS_dynmat(path::String, N_atoms::Integer, units)
+
+    dynmat_file_contents = readdlm(path);
+
+    dynmat = zeros((3*N_atoms, 3*N_atoms))
+
+    row = 1
+
+    for i in range(1,N_atoms)
+        for alpha in range(1,3)
+            for j in range(1,N_atoms)
+                for beta in range(1,3)
+                    dynmat[(3*(i-1))+alpha, (3*(j-1))+beta] = dynmat_file_contents[row,beta]
+                end
+                row += 1
+            end
+        end
+    end
+
+    if unit_system == :REAL
+        units = u"kcal * g^-1 * Å^-2"
+    elseif unit_system == :METAL
+        units = u"eV * mol * g^-1 * Å^-2"
+    else
+        throw(ArgumentError("Unsupported unit_system: $(unit_system)"))
+    end
+
+    return SecondOrderMatrix(dynmat, units, 0.0)
+end
+"""
+Parses output from LAMMPS `third_order` command in the PHONON package
+"""
+function parse_LAMMPS_third_order(path::String, N_atoms::Int, unit_system::Symbol = :REAL)
+
+    F3_file_contents = readdlm(path);
+
+    F3 = zeros((3*N_atoms, 3*N_atoms, 3*N_atoms))
+
+    for line in range(1,size(F3_file_contents)[1])
+        i, α, j, β, k, data... = F3_file_contents[line,:]
+        for γ in range(1,3)
+            F3[Int((3*(i-1)) + α), Int((3*(j-1)) + β), Int((3*(k-1)) + γ)] = data[γ]
+        end
+    end
+
+    if unit_system == :REAL
+        units = u"kcal * mol^-1 * Å^-3"
+    elseif unit_system == :METAL
+        units = u"eV * Å^-3"
+    else
+        throw(ArgumentError("Unsupported unit_system: $(unit_system)"))
+    end
+
+    return ThirdOrderMatrix(F3, units, 0.0)
 end
