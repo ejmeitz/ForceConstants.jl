@@ -23,7 +23,7 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     not_all_unique = (i,j,k) -> (i == j || i == k || j == k)
 
     r = zeros(D)*unit(sys.atoms.position[1][1])
-    for idx in unique_indices #hard to parllelize with this iterator
+    for idx in unique_indices #TODO PARALLELIZE THIS, HOW TO STILL USE ITERATOR? just for i <= j <= k
         i,j,k = idx
         if is_not_self_term(i,j,k) && not_all_unique(i,j,k)
             # println(i," ",j," ",k)
