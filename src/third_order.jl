@@ -69,18 +69,13 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     end
 
     #Apply tolerances
-    for i in eachindex(Ψ)
-        if abs(Ψ[i]) < tol
-            Ψ[i] = 0.0
-        end
-    end
+    Ψ = apply_tols!(Ψ, tol)
 
     #Give proper units
     Ψ_unit = unit(pot.ϵ / pot.σ^3)
 
     return ThirdOrderMatrix(Ψ, Ψ_unit, tol)
 end
-
 
 function mass_weight_third_order!(Ψ::ThirdOrderMatrix, masses::AbstractVector)
     N_modes = size(Ψ)[1]

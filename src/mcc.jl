@@ -5,7 +5,7 @@ export mcc3
 Converts third order forces constants, `Ψ` into third order modal coupling constants (MCC).
 Does not divide MCC calculation into smaller chunks. This might exhaust GPU memory.
 """
-function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2})
+function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, tol)
 
     K3 = CUDA.zeros(Float32, size(Ψ));
 
@@ -13,7 +13,9 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2})
         K3[n,m,l] = Ψ[i,j,k] * phi[i,n] * phi[j,m] * phi[k,l]
     end
 
-    return Array(K3)
+    K3_CPU = Array(K3)
+    return apply_tols!(K3_CPU, tol)
+
 end
 
 """
@@ -23,7 +25,7 @@ parameter `block_size` specifies problem size when calculating the MCC. For exam
 The `phi` matrix will be automatically truncated to adjust for this.
     Try to maximize `block_size` and make it a power of 2.
 """
-function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int)
+function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int, tol)
 
     @assert size(phi)[1] % block_size == 0
     @assert block_size > 0
@@ -53,7 +55,7 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int
     #TODO this calculates more than it needs to atm, can only calculate unique part and rotate 
     #TODO to enforce symmetry, kinda annoying to implement, will matter more when system > GPU RAM
 
-    return K3_CPU
+    return apply_tols!(K3_CPU, tol)
 end
 
 

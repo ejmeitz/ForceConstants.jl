@@ -24,6 +24,15 @@ function nearest_mirror(r_ij, box_sizes)
     return [r_x,r_y,r_z] 
 end
 
+function apply_tols!(arr, tol)
+    Threads.@threads for i in eachindex(arr)
+        if abs(arr[i]) < tol
+            arr[i] = 0.0
+        end
+    end
+    return arr
+end
+
 # """
 # nᵗʰ triangular number
 # """
