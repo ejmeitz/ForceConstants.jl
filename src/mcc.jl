@@ -5,7 +5,7 @@ export mcc3
 Converts third order forces constants, `Ψ` into third order modal coupling constants (MCC).
 Does not divide MCC calculation into smaller chunks. This might exhaust GPU memory.
 """
-function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, tol)
+function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, tol::Float64)
 
     K3 = CUDA.zeros(Float32, size(Ψ));
 
@@ -25,7 +25,7 @@ parameter `block_size` specifies problem size when calculating the MCC. For exam
 The `phi` matrix will be automatically truncated to adjust for this.
     Try to maximize `block_size` and make it a power of 2.
 """
-function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int, tol)
+function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int, tol::Float64)
 
     @assert size(phi)[1] % block_size == 0
     @assert block_size > 0

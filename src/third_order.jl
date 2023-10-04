@@ -1,4 +1,4 @@
-export third_order_IFC, mass_weight_sparsify_third_order, mass_weight_third_order!, F3_val
+export third_order_IFC, third_order_test, mass_weight_sparsify_third_order, mass_weight_third_order!, F3_val
 
 mutable struct ThirdOrderMatrix{V,U,T}
     values::Array{V,3}
@@ -57,7 +57,7 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     end
 
     #Acoustic Sum Rule (technically re-calculating the whole loop above here)
-    Threads.@threads :dynamic for i in range(1,N_atoms)
+    Threads.@threads for i in range(1,N_atoms)
         for α in range(1,D)
             for β in range(1,D)
                 for γ in range(1,D)
@@ -108,9 +108,6 @@ function mass_weight_third_order!(Ψ::ThirdOrderMatrix, masses::AbstractVector)
     return Ψ
 end
 
-#Kronicker Delta
-δₖ(x,y) = ==(x,y)
-
 function ϕ₃(pot::PairPotential, r_norm, rᵢⱼ, α, β, γ)
     Φ′ = potential_first_deriv(pot, r_norm)
     Φ′′ = potential_second_deriv(pot, r_norm)
@@ -142,6 +139,7 @@ function ϕ₃_self(sys::SuperCellSystem, pot::PairPotential, i, α, β, γ)
     return value
 
 end
+
 
 
 
@@ -207,4 +205,81 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
 
 
     return ThirdOrderSparse(Ψ_non_zero_mw, Ψ.units/mass_unit, Ψ.tol)
+end
+
+
+function third_order_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
+    @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
+    N_atoms = n_atoms(sys)
+    Ψ = zeros(D*N_atoms, D*N_atoms, D*N_atoms)
+
+
+    # pot is pair potential only loop atomic pairs
+    Threads.@threads for i in range(1,N_atoms)
+        r = zeros(D)*unit(sys.atoms.position[1][1]) #pre-allocate per thread
+        for j in range(i+1,N_atoms)
+
+            #i,i,j terms
+            r .= sys.atoms.position[i] .- sys.atoms.position[j]
+            nearest_mirror!(r, sys.box_sizes_SC)
+            dist = norm(r)
+
+            
+            if dist < pot.r_cut
+                for α in range(1,D)
+                    for β in range(1,D)
+                        for γ in range(1,D)
+                            val = -ustrip(ϕ₃(pot, dist, r, α, β, γ)) #* re-calculating derivatives ununecessarily in here
+                            ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(j-1) + γ
+                            Ψ[ii,jj,kk] = val; Ψ[ii,kk,jj] = val
+                            Ψ[jj,kk,ii] = val; Ψ[jj,ii,kk] = val
+                            Ψ[kk,ii,jj] = val; Ψ[kk,jj,ii] = val 
+                        end
+                    end
+                end            
+
+            end
+
+            # #j,j,i term
+            r .= sys.atoms.position[j] .- sys.atoms.position[i]
+            nearest_mirror!(r, sys.box_sizes_SC)
+            dist = norm(r)
+
+            if dist < pot.r_cut
+                for α in range(1,D)
+                    for β in range(1,D)
+                        for γ in range(1,D)
+                            val = -ustrip(ϕ₃(pot, dist, r, α, β, γ)) 
+                            ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(j-1) + γ
+                            Ψ[ii,jj,kk] = val; Ψ[ii,kk,jj] = val
+                            Ψ[jj,kk,ii] = val; Ψ[jj,ii,kk] = val
+                            Ψ[kk,ii,jj] = val; Ψ[kk,jj,ii] = val 
+                        end
+                    end
+                end            
+
+            end
+        end
+    end
+
+    #Acoustic Sum Rule #*(technically re-calculating the whole loop above here)
+    Threads.@threads for i in range(1,N_atoms)
+        for α in range(1,D)
+            for β in range(1,D)
+                for γ in range(1,D)
+                    ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(i-1) + γ
+                    Ψ[ii,jj,kk] = ϕ₃_self(sys, pot, i, α, β, γ)
+                end
+            end
+        end
+    end
+
+    #Apply tolerances
+    Ψ = apply_tols!(Ψ, tol)
+
+    #Give proper units
+    Ψ_unit = unit(pot.ϵ / pot.σ^3)
+
+    return ThirdOrderMatrix(Ψ, Ψ_unit, tol)
+    
 end

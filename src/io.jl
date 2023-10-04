@@ -3,6 +3,8 @@ export save_second_order, save_third_order,
         parse_ModeCode_third_order, parse_LAMMPS_dynmat, parse_LAMMPS_third_order
 
 
+# Methods to save data created with this package
+
 function save_second_order(Φ::SecondOrderMatrix, N_atoms, D, outpath; filename = "second_order", fmt = :JLD2)
     @assert ((N_atoms*D) == size(Φ.values)[1] && (N_atoms*D) == size(Φ.values)[2]) "Incorrect dimensions"
 
@@ -82,7 +84,8 @@ end
 Parses the TDEP format for second order force cosntants. 
 
 This function assumes that the force constants were calculated for the supercell or that
-the unit-cell was remapped to the supercell with remap_forceconstants.
+the unit-cell was remapped to the supercell with remap_forceconstants. This function is
+not guranteed to work with the most recent version of TDEP.
 """
 function parse_TDEP_second_order(ifc_path::String, N_modes, energy_units::Symbol = :REAL)
 
@@ -132,7 +135,8 @@ end
 Parses the TDEP format for third order force cosntants. 
 
 This function assumes that the force constants were calculated for the supercell or that
-the unit-cell was remapped to the supercell with remap_forceconstants.
+the unit-cell was remapped to the supercell with remap_forceconstants. This function is
+not guranteed to work with the most recent version of TDEP.
 """
 function parse_TDEP_thrid_order(ifc_path::String, N_modes, energy_units = :REAL)
     Ψ = zeros(N_modes, N_modes, N_modes)

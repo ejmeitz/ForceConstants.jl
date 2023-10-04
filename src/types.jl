@@ -1,4 +1,4 @@
-export UnitCellSystem, SuperCellSystem, Potential, PairPotential, ThreeBodyPotential,
+export SuperCellSystem, Potential, PairPotential, ThreeBodyPotential,
     masses, mass, position, positions, charges, charge, n_atoms, n_atoms_per_uc
 
 struct Atom{P,C,M}
@@ -12,50 +12,19 @@ function Atom(position, mass; charge = 0.0u"q")
 end
 
 #####################################################
+#TODO USE ATOMSBASE
+#COMMENT OUT UNIT CELL SYSTEM?
 
-abstract type System end #TODO USE ATOMSBASE
-
-struct UnitCellSystem{D,L} <: System
-    atoms::Dict{Tuple,StructArray{Atom}}
-    num_unit_cells::SVector{D,Int}
-    box_sizes_UC::L
-    box_sizes_SC::L
-end
-
-function UnitCellSystem(crystal::Crystal{D}, num_unit_cells::SVector{D,Int}) where D
-    @assert sum(crystal.N_unit_cells) == D "Crystal must be a single unit cell"
-
-    unit_cell_indices = Iterators.product([1:num_unit_cells[i] for i in range(1,D)]...)
-
-    positions = SimpleCrystals.position(crystal)
-    masses = SimpleCrystals.atomic_mass(crystal)
-    charges = getindex.(crystal.atoms, :charge)
-    box_sizes = norm.(bounding_box(crystal))
-    box_sizes_SC = norm.(num_unit_cells .* bounding_box(crystal))
-    #Generate data for all atoms in all unit cells
-    atoms = Dict()
-
-    for uc_idx in unit_cell_indices
-        positions_new = []
-        unitcell_origin = [box_sizes[1]*(uc_idx[1]-1), box_sizes[2]*(uc_idx[2]-1), box_sizes[3]*(uc_idx[3]-1)]
-        for i in range(1, length(crystal))
-            push!(positions_new, positions[i] .+ unitcell_origin)
-        end
-        atoms[uc_idx] = StructArray{Atom}((position = positions_new, mass = masses, charge = charges))
-    end
-
-    return UnitCellSystem{D, typeof(box_sizes)}(atoms, num_unit_cells, box_sizes, box_sizes_SC)
-end
-
-mass(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].mass[atom_idx]
-position(sys::UnitCellSystem, uc_idx::Tuple, atom_idx::Int) = sys.atoms[uc_idx].position[atom_idx]
-charge(sys::UnitCellSystem, atom_idx::Int) = sys.atoms[(1,1,1)].charge[atom_idx]
-n_atoms(sys::UnitCellSystem) = length(sys.atoms)*length(sys.atoms[(1,1,1)])
-n_atoms_per_uc(sys::UnitCellSystem) = length(sys.atoms[(1,1,1)])
-
-struct SuperCellSystem{D,L} <: System
+struct SuperCellSystem{D,L}
     atoms::StructArray{Atom}
-    box_sizes_SC::L
+    box_sizes_SC::AbstractVector{L}
+end
+
+function SuperCellSystem(positions::AbstractVector{AbstractVector}, masses::AbstractVector,
+    box_sizes::AbstractVector, charges = zeros(length(masses))*u"q")
+    D = length(box_sizes)
+    atoms = StructArray{Atom}((position = positions, mass = masses, charge = charges))
+    return SuperCellSystem{D, eltype(box_sizes)}(atoms, box_sizes)
 end
 
 function SuperCellSystem(crystal::Crystal{D}) where D
@@ -66,14 +35,9 @@ function SuperCellSystem(crystal::Crystal{D}) where D
                                mass = masses,
                                charge = charges))
     box_sizes = norm.(bounding_box(crystal))
-    return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
+    return SuperCellSystem{D, eltype(box_sizes)}(atoms, box_sizes)
 end
 
-function SuperCellSystem(r0, masses, box_sizes::AbstractVector; charges = zeros(length(masses))*u"q")
-    D = length(box_sizes)
-    atoms = StructArray{Atom}((position = r0, mass = masses, charge = charges))
-    return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
-end
 
 function SuperCellSystem(df::DataFrame, masses::AbstractVector, box_sizes::AbstractVector,
          x_col, y_col, z_col; charges = zeros(length(masses))*u"q")
@@ -81,8 +45,9 @@ function SuperCellSystem(df::DataFrame, masses::AbstractVector, box_sizes::Abstr
     tmp = hcat(df[!,x_col], df[!,y_col], df[!, z_col])
     r = [tmp[i,:] for i in range(1, size(tmp)[1])]
     atoms = StructArray{Atom}((position = r, mass = masses, charge = charges))
-    return SuperCellSystem{D, typeof(box_sizes)}(atoms, box_sizes)
+    return SuperCellSystem{D, eltype(box_sizes)}(atoms, box_sizes)
 end
+
 
 atomkeys(sys::SuperCellSystem) = keys(sys.atoms[1])
 hasatomkey(sys::SuperCellSystem, x::Symbol) = x ∈ atomkeys(sys)
@@ -102,3 +67,34 @@ abstract type ThreeBodyPotential <: Potential end
 
 ########################################################
 
+# struct ForceConstants{V,N,U,T}
+#     values::Array{V,N}
+#     units::U
+#     tol::T
+# end
+
+struct FC_val{V,N}
+    val::V
+    idxs::SVector{Int32,N}
+end
+
+function FC_val(val, idxs::Vararg{Integer})
+    return FC_val{typeof(val),length(idxs)}(val,SVector(idxs))
+end
+
+# struct SparseForceConstants{V,N,U,T}
+#     values::AbstractVector{FC_val{V,N}}
+#     units::U
+#     tol::T
+# end
+
+# #type aliases
+# const SecondOrderForceConstants{V,U,T} = ForceConstants{V,2,U,T}
+# const ThirdOrderForceConstants{V,U,T} = ForceConstants{V,3,U,T}
+# const FourthOrderForceConstants{V,U,T} = ForceConstants{V,4,U,T}
+
+# #Construct SparseForceConstants object from dense ForceConstants object 
+# function SparseForceConstants(fc::ForceConstants{V,N,U,T}) where {V,N,U,T}
+#     #TODO
+#     return SparseForceConstants{V,N,U,T}(values, fc.units, fc.tol)
+# end

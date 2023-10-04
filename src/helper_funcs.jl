@@ -1,3 +1,6 @@
+#Kronicker Delta
+δₖ(x,y) = ==(x,y)
+
 
 #could remove allocations here and just make it a ! function
 function nearest_mirror(r_ij, box_sizes)
@@ -24,10 +27,42 @@ function nearest_mirror(r_ij, box_sizes)
     return [r_x,r_y,r_z] 
 end
 
+function nearest_mirror!(r_ij, box_sizes)
+    L_x, L_y, L_z = box_sizes
+    if r_ij[1] > L_x/2
+        r_ij[1] -= L_x
+    elseif r_ij[1] < -L_x/2
+        r_ij[1] += L_x
+    end
+        
+    if r_ij[2] > L_y/2
+        r_ij[2] -= L_y
+    elseif r_ij[2] < -L_y/2
+        r_ij[2] += L_y  
+    end
+        
+    if r_ij[3] > L_z/2
+        r_ij[3] -= L_z
+    elseif r_ij[3] < -L_z/2
+        r_ij[3] += L_z
+    end
+    
+    return r_ij
+end
+
 function apply_tols!(arr, tol)
     Threads.@threads for i in eachindex(arr)
         if abs(arr[i]) < tol
             arr[i] = 0.0
+        end
+    end
+    return arr
+end
+
+function apply_tols!(arr::AbstractVector{FC_val}, tol)
+    Threads.@threads for i in eachindex(arr)
+        if abs(arr[i].val) < tol
+            deleteat!(arr,i)
         end
     end
     return arr
