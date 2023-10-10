@@ -61,7 +61,7 @@ function save_third_order(Ψ::ThirdOrderMatrix, N_atoms, D, outpath; filename = 
         close(f)
     elseif fmt == :JLD2
         filepath = joinpath(outpath, filename*".jld2")
-        jldsave(filepath, F3 = Ψ, N_atoms = N_atoms, dimension = D, unit = string(Ψ.units))
+        jldsave(filepath, F3 = Ψ.values, N_atoms = N_atoms, dimension = D, unit = string(Ψ.units))
     else
         throw(ArgumentError("Invalid format, $(fmt)"))
     end
@@ -193,6 +193,9 @@ function parse_TDEP_thrid_order(ifc_path::String, N_modes, energy_units = :REAL)
     return ThirdOrderMatrix(Ψ, units, 0.0)
 end
 
+"""
+Modecode assumes LAMMPS units were metal and converts to Ryd/Bohr^3.
+"""
 function parse_ModeCode_third_order(path::String, N_atoms::Int, unit_system::Symbol = :REAL)
     #Convert Ryd/bohr^3 to match system units
     conversion_factor = 1.0

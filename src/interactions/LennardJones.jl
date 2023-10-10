@@ -26,12 +26,17 @@ function potential(pot::LJ, r)
     return 4*pot.ϵ*k*(k-1)
 end
 
+function potential_nounits(pot::LJ, r)
+    k = (ustrip(pot.σ)/r)^6
+    return 4*ustrip(pot.ϵ)*k*(k-1)
+end
+
 function potential_first_deriv(pot::LJ, r)
     return -1*pot.ϵ*(48*(pot.σ^12/r^13) - 24*(pot.σ^6/r^7))
 end
 
 function force(pot::LJ, r)
-    return -1*potential_first_deriv(pot, r)
+    return pot.ϵ*(48*(pot.σ^12/r^13) - 24*(pot.σ^6/r^7))
 end
 
 function potential_second_deriv(pot::LJ, r)

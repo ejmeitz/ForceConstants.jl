@@ -41,11 +41,10 @@ end
 
 function SuperCellSystem(df::DataFrame, masses::AbstractVector, box_sizes::AbstractVector,
          x_col, y_col, z_col; charges = zeros(length(masses))*u"q")
-    D = length(box_sizes)
     tmp = hcat(df[!,x_col], df[!,y_col], df[!, z_col])
     r = [tmp[i,:] for i in range(1, size(tmp)[1])]
     atoms = StructArray{Atom}((position = r, mass = masses, charge = charges))
-    return SuperCellSystem{D, eltype(box_sizes)}(atoms, box_sizes)
+    return SuperCellSystem{3, eltype(box_sizes)}(atoms, box_sizes)
 end
 
 
@@ -75,12 +74,13 @@ abstract type ThreeBodyPotential <: Potential end
 
 struct FC_val{V,N}
     val::V
-    idxs::SVector{Int32,N}
+    idxs::SVector{N,Int32}
 end
 
-function FC_val(val, idxs::Vararg{Integer})
-    return FC_val{typeof(val),length(idxs)}(val,SVector(idxs))
+function FC_val(val, idxs::Vararg{Integer, N}) where N
+    return FC_val{typeof(val),N}(val, SVector(idxs))
 end
+
 
 # struct SparseForceConstants{V,N,U,T}
 #     values::AbstractVector{FC_val{V,N}}
@@ -98,3 +98,27 @@ end
 #     #TODO
 #     return SparseForceConstants{V,N,U,T}(values, fc.units, fc.tol)
 # end
+
+# Storage is multiple vectors, acts as single vector
+# Allows for multi-threaded construction
+struct MultiVectorStorage{T}
+    data::Vector{Vector{T}}
+end
+
+function MultiVectorStorage(dt::DataType, N_vecs)
+    return MultiVectorStorage{dt}([dt[] for i in 1:N_vecs])
+end
+
+function add_element!(mvs::MultiVectorStorage{T}, val::T, i::Integer) where T
+    push!(mvs.data[i], val)
+    return mvs
+end
+
+function Base.length(mvs::MultiVectorStorage)
+    return sum(length.(mvs.data))
+end
+
+#Concats vectors into one normal vector
+function Base.convert(::Type{Vector{T}}, mvs::MultiVectorStorage{T}) where T
+    return reduce(vcat, mvs.data)
+end

@@ -59,14 +59,6 @@ function apply_tols!(arr, tol)
     return arr
 end
 
-function apply_tols!(arr::AbstractVector{FC_val}, tol)
-    Threads.@threads for i in eachindex(arr)
-        if abs(arr[i].val) < tol
-            deleteat!(arr,i)
-        end
-    end
-    return arr
-end
 
 # """
 # nᵗʰ triangular number
