@@ -227,9 +227,9 @@ function fourth_order_finite_diff(sys::SuperCellSystem{3}, pot::PairPotential, a
 
     for (c,combo) in enumerate(combos)
 
-        posns[atom_idxs[1]][1] += combo[1]
-        posns[atom_idxs[2]][2] += combo[2]
-        posns[atom_idxs[3]][3] += combo[3]
+        posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
+        posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
+        posns[atom_idxs[3]][cartesian_idxs[3]] += combo[3]
 
         l = atom_idxs[4]
         force_val = zero(force(pot,1u"Å"))  
@@ -257,9 +257,9 @@ function fourth_order_finite_diff(sys::SuperCellSystem{3}, pot::PairPotential, a
         forces[c] = force_val
 
         #Un-modify
-        posns[atom_idxs[1]][1] -= combo[1]
-        posns[atom_idxs[2]][2] -= combo[2]
-        posns[atom_idxs[3]][3] -= combo[3]
+        posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
+        posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
+        posns[atom_idxs[3]][cartesian_idxs[3]] -= combo[3]
     end
 
     return (1/(8*(h^3)))*(forces[1] - forces[2] - forces[3] + forces[4] - forces[5] + forces[6] + forces[7] - forces[8])

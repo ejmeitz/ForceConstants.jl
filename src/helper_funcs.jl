@@ -59,6 +59,25 @@ function apply_tols!(arr, tol)
     return arr
 end
 
+function energy_loop(pot::PairPotential, posns, eng_unit, r_cut, box_sizes, N_atoms)
+
+    U_total = zero(eng_unit)
+
+    for i in range(1,N_atoms)
+        for j in range(i+1, N_atoms)             
+            r = posns[i] .- posns[j]
+            nearest_mirror!(r, box_sizes)
+            dist = norm(r)
+            if dist < r_cut
+                U_total += potential(pot,dist)
+            end
+        end
+    end
+
+    return U_total
+
+end
+
 
 # """
 # nᵗʰ triangular number

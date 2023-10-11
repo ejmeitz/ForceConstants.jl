@@ -3,7 +3,7 @@ export LJ
 #################
 # Lennard Jones #
 #################
-
+#& ADD LENGTH SCALE TO THESE INSTEAD OF RELYING ON SIGMA AND EPSILON
 struct LJ{S,E,R,U,F} <: PairPotential
     σ::S
     ϵ::E
