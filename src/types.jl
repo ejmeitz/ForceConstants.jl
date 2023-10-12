@@ -65,49 +65,71 @@ abstract type ThreeBodyPotential <: Potential end
 
 ########################################################
 
-abstract type AbstractForceConstant{O} end
+abstract type AbstractForceConstants{O} end
 
-struct DenseForceConstants{V,O,U,T} <: AbstractForceConstant{O}
+struct DenseForceConstants{O,V,U,T} <: AbstractForceConstants{O}
     values::Array{V,O}
     units::U
     tol::T
 end
 
 Base.size(fc::DenseForceConstants) = size(fc.values)
-Base.getindex(fc::DenseForceConstants{V,O}, idxs::Vararg{Integer, O}) where {V,O} = fc.values[idxs...]
+Base.getindex(fc::DenseForceConstants{O}, idxs::Vararg{Integer, O}) where O = fc.values[idxs...]
+n_modes(fc::DenseForceConstants) = size(fc)[1]
 
 #type aliases
-const SecondOrderForceConstants{V,U,T} = DenseForceConstants{V,2,U,T}
-const ThirdOrderForceConstants{V,U,T} = DenseForceConstants{V,3,U,T}
-const FourthOrderForceConstants{V,U,T} = DenseForceConstants{V,4,U,T}
+const SecondOrderForceConstants{V,U,T} = DenseForceConstants{2,V,U,T}
+const ThirdOrderForceConstants{V,U,T} = DenseForceConstants{3,V,U,T}
+const FourthOrderForceConstants{V,U,T} = DenseForceConstants{4,V,U,T}
 
 struct FC_val{V,O}
     val::V
-    idxs::SVector{O,Int32}
+    idxs::Vector{Int32}
 end
+value(fcv::FC_val) = fcv.val
+idx(fcv::FC_val) = fcv.idxs
 
 function FC_val(val, idxs::Vararg{Integer, O}) where O
-    return FC_val{typeof(val),O}(val, SVector(idxs))
+    return FC_val{typeof(val), O}(val, Vector{Int32}(idxs))
 end
 
 
-struct SparseForceConstants{V,O,U,T} <: AbstractForceConstant{O}
-    values::AbstractVector{FC_val{V,O}}
+struct SparseForceConstants{O,V,U,T} <: AbstractForceConstants{O}
+    values::AbstractVector{FC_val{V,O}} #& MAKE THIS A STRUCT ARRAY???
     units::U
     tol::T
 end
 
+# struct SparseForceConstantsTest{O,V,U,T} <: AbstractForceConstant{O}
+#     values::StructArray{FC_val{V,O}} #& MAKE THIS A STRUCT ARRAY???
+#     units::U
+#     tol::T
+# end
+
+Base.length(fc::SparseForceConstants) = length(fc.values)
+
 #type aliases
-const SparseSecondOrder{V,U,T} = SparseForceConstants{V,2,U,T}
-const SparseThirdOrder{V,U,T} = SparseForceConstants{V,3,U,T}
-const SparseFourthOrder{V,U,T} = SparseForceConstants{V,4,U,T}
+const SparseSecondOrder{V,U,T} = SparseForceConstants{2,V,U,T}
+const SparseThirdOrder{V,U,T} = SparseForceConstants{3,V,U,T}
+const SparseFourthOrder{V,U,T} = SparseForceConstants{4,V,U,T}
 
 
 # #Construct SparseForceConstants object from dense ForceConstants object 
-# function SparseForceConstants(fc::ForceConstants{V,O,U,T}) where {V,O,U,T}
-#     #TODO
-#     return SparseForceConstants{V,O,U,T}(values, fc.units, fc.tol)
-# end
+function SparseForceConstants(fc::ForceConstants{O,V,U,T}) where {O,V,U,T}
+    N_modes = size(fc)[1]
+    
+    idxs = with_replacement_combinations(1:N_modes, O)
+    values = FC_Val{V,O}[]
+    for idx in idxs
+        if fc[idx...] != 0.0
+            for perm in permutations(idx)
+                push!(values, FC_Val(fc[perm...], perm...))
+            end
+        end
+    end
+
+    return SparseForceConstants{O,V,U,T}(values, fc.units, fc.tol)
+end
 
 # Storage is multiple vectors, acts as single vector
 # Allows for multi-threaded construction

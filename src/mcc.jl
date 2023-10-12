@@ -1,4 +1,4 @@
-export mcc3
+export mcc3, mcc3_custom_kernel
 
 
 """
@@ -72,3 +72,47 @@ function mcc3_blocked!(K3::CuArray{Float32, 3}, Ψ::CuArray{Float32, 3}, phi::Cu
     return K3
 end
 
+
+const BLOCK_SIZE = 128
+
+#Each thread calculates fiber of K_nml
+function mcc3_custom_kernel(num_psi_idxs::Int32, mcc::CuDeviceArray{Float32,1}, phi::CuDeviceArray{Float32,2},
+         Ψ_vals::CuDeviceArray, is::CuDeviceArray{Int32,1}, js::CuDeviceArray{Int32,1}, ks::CuDeviceArray{Int32,1}) 
+
+    n = (blockIdx().x-1i32) * blockDim().x + threadIdx().x
+    m = (blockIdx().y-1i32) * blockDim().y + threadIdx().y
+    linearThreadIdx = (blockDim().x * threadIdx().y) + threadIdx().x #& OFF BY 1 iSSUES?
+
+    #To store rows of phi matrix needed by current values of Psi
+    phi_i = CuStaticSharedArray(Float32, BLOCK_SIZE)
+    phi_j = CuStaticSharedArray(Float32, BLOCK_SIZE)
+    phi_k = CuStaticSharedArray(Float32, BLOCK_SIZE)
+
+
+    # Treat thread index as index into Ψ now and accumulate values into MCC
+    for i in 1:BLOCK_SIZE:num_psi_idxs
+        psi_idx = i + linearThreadIdx
+
+        if psi_idx <= num_psi_idxs
+            #Move Phi Data Into Shared Memory
+            phi_i[linearThreadIdx] = phi[is[psi_idx]]
+            phi_j[linearThreadIdx] = phi[js[psi_idx]]
+            phi_k[linearThreadIdx] = phi[ks[psi_idx]] #& This might be the only one that needs to be in shared mem
+            sync_threads()
+
+            #Calculate fiber of MCC
+            for l in 1:N_modes
+                mcc[n,m,l] += Ψ_vals[psi_idx]*phi_i[n]*phi_j[m]*phi_k[l]
+            end
+            sync_threads()
+
+        end
+    end
+
+end
+
+# const BLOCK_SIDE = 32
+# const GRID_SIDE = ceil(sqrt(N)/BLOCK_SIDE)
+# @cuda blocks = (GRID_SIDE,GRID_SIDE) threads = (BLOCK_SIDE,BLOCK_SIDE) mcc3_custom_kernel(
+
+# )

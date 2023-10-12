@@ -66,7 +66,7 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     #Give proper units
     Ψ_unit = unit(pot.ϵ / pot.σ^3)
 
-    return ForceConstants(Ψ, Ψ_unit, tol)
+    return DenseForceConstants(Ψ, Ψ_unit, tol)
 end
 
 function mass_weight_third_order!(Ψ::ThirdOrderForceConstants, masses::AbstractVector)
@@ -231,6 +231,7 @@ function third_order_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) wher
         end
     end
 
+    #Self terms
     Ψ = ASR!(Ψ, N_atoms, D)
 
     #Apply tolerances
@@ -255,7 +256,7 @@ function ASR!(ifc3::Array{T,3}, N_atoms, D) where T
                     # Loop atoms k with this α, β, γ
                     for k in range(1,N_atoms)
                         if k != i
-                            ii = D*(i-1) + α; jj = D*(ji-1) + β; kk = D*(k-1) + γ
+                            ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(k-1) + γ
                             ifc3[ii_self,jj_self,kk_self] -= ifc3[ii,jj,kk] 
                         end
                     end

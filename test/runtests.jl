@@ -18,6 +18,12 @@ else
     @warn "The GPU tests will not be run as a CUDA-enabled device is not available"
 end
 
+pot = LJ(3.4u"Å", 0.24037u"kcal * mol^-1", 8.5u"Å")
+fcc_crystal = FCC(5.2468u"Å", :Ar, SVector(4,4,4))
+sys = SuperCellSystem(fcc_crystal)
+dynmat = dynamicalMatrix(sys, pot, 1e-12);
+freqs_sq, phi = get_modes(dynmat_, 3)
+
 # @testset "Supercell vs Unitcell" begin
     
 #     pot = LJ(3.4u"Å", 0.24037u"kcal * mol^-1", 8.5u"Å")

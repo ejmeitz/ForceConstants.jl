@@ -1,4 +1,4 @@
-export second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff
+export check_ifc, second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff
 
 
 function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs;
@@ -148,24 +148,48 @@ function fourth_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
    return (1/(8*(h^3)))*(forces[1] - forces[2] - forces[3] + forces[4] - forces[5] + forces[6] + forces[7] - forces[8])
 end
 
-function check_ifc(sys::SuperCellSystem{D}, ifc::AbstractForceConstant{O} pot::PairPotential, n_points;
+function check_ifc(sys::SuperCellSystem{D}, ifc::DenseForceConstants{O}, pot::PairPotential, n_points;
     r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å") where {D,O}
 
-    N_atoms = n_aotms(sys)
+    N_atoms = n_atoms(sys)
     ri = rand(1:N_atoms, (n_points,O)) #random indexes
     rci = rand(1:D, (n_points, O)) #random cartesian indexes
 
-    const finite_diff_funcs = [second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff]
+    finite_diff_funcs = [second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff]
     finite_diff_func = finite_diff_funcs[O-1]
 
-    ifc_fd = zeros(n_points)*ifc.unit
-    ifc_actual = [ifc[D*(ri[i,1] - 1) + rci[i,1], D*(ri[i,2] - 1) + rci[i,2], D*(ri[i,3] - 1) + rci[i,3]]
-                     for i in 1:n_points]
+    ifc_fd = zeros(n_points)*ifc.units
+    #& ONLY WORKS FOR SPECIFIC DIMENSION
+    ifc_actual = [ifc[D*(ri[i,1] - 1) + rci[i,1], D*(ri[i,2] - 1) + rci[i,2]] for i in 1:n_points]
+    # ifc_actual = [ifc[D*(ri[i,1] - 1) + rci[i,1], D*(ri[i,2] - 1) + rci[i,2], D*(ri[i,3] - 1) + rci[i,3]]
+    #                  for i in 1:n_points]
  
     for i in 1:n_points
-        ifc_fd[i] = finite_diff_func(sys, pot, ri[i], rci[i])
+        ifc_fd[i] = finite_diff_func(sys, pot, ri[i,:], rci[i,:]; r_cut = r_cut, h = h)
     end
 
-    return ifc_fd, ifc_actual
+    return ifc_fd, (ifc_actual.*ifc.units)
+
+end
+
+function check_ifc(sys::SuperCellSystem{D}, ifc::SparseForceConstants{O}, pot::PairPotential, n_points;
+    r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å") where {D,O}
+
+    random_idxs = rand(1:length(ifc), (n_points,)) 
+
+    finite_diff_funcs = [second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff]
+    finite_diff_func = finite_diff_funcs[O-1]
+
+    ifc_fd = zeros(n_points)*ifc.units
+    ifc_actual = value.(ifc[random_idxs])
+ 
+    for p in 1:n_points
+        idxs = idx(ifc[random_idxs[p]])
+        cart_idxs = ((idxs .- 1) .% D) .+ 1
+        atom_idxs = ((idxs .- cart_idxs) ./ D) .- 1
+        ifc_fd[p] = finite_diff_func(sys, pot, atom_idxs, cart_idxs; r_cut = r_cut, h = h)
+    end
+
+    return ifc_fd,  (ifc_actual.*ifc.units)
 
 end
