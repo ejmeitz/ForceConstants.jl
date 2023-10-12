@@ -5,7 +5,7 @@ export save_second_order, save_third_order,
 
 # Methods to save data created with this package
 
-function save_second_order(Φ::SecondOrderMatrix, N_atoms, D, outpath; filename = "second_order", fmt = :JLD2)
+function save_second_order(Φ::SecondOrderForceConstants, N_atoms, D, outpath; filename = "second_order", fmt = :JLD2)
     @assert ((N_atoms*D) == size(Φ.values)[1] && (N_atoms*D) == size(Φ.values)[2]) "Incorrect dimensions"
 
     if fmt == :txt
@@ -35,7 +35,7 @@ function save_second_order(Φ::SecondOrderMatrix, N_atoms, D, outpath; filename 
 
 end
 
-function save_third_order(Ψ::ThirdOrderMatrix, N_atoms, D, outpath; filename = "third_order", fmt = :JLD2)
+function save_third_order(Ψ::ThirdOrderForceConstants, N_atoms, D, outpath; filename = "third_order", fmt = :JLD2)
     @assert ((N_atoms*D) == size(Ψ.values)[1] && (N_atoms*D) == size(Ψ)[2] && (N_atoms*D) == size(Ψ.values)[3]) "Incorrect dimensions"
 
     if fmt == :txt
@@ -67,7 +67,7 @@ function save_third_order(Ψ::ThirdOrderMatrix, N_atoms, D, outpath; filename = 
     end
 end
 
-function save_third_order(Ψ::ThirdOrderSparse, N_atoms, D, outpath; filename = "third_order_sparse", fmt = :JLD2)
+function save_third_order(Ψ::SparseThirdOrder, N_atoms, D, outpath; filename = "third_order_sparse", fmt = :JLD2)
 
     if fmt == :JLD2
         filepath = joinpath(outpath, filename*".jld2")

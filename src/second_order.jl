@@ -1,11 +1,4 @@
-export dynamicalMatrix, second_order_IFC, get_modes, second_order_finite_diff
-
-struct SecondOrderMatrix{V,U,T}
-    values::Array{V,2}
-    units::U
-    tol::T
-end
-
+export dynamicalMatrix, second_order_IFC, get_modes
 
 ### Super Cell ###
 
@@ -32,7 +25,7 @@ function dynamicalMatrix(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     #Add final units to dynamical matrix
     dynmat_unit = dynmat.units / unit(mass(sys,1))
 
-    return SecondOrderMatrix(dynmat.values, dynmat_unit, tol)
+    return DenseForceConstants(dynmat.values, dynmat_unit, tol)
 end
 
 function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
@@ -76,7 +69,7 @@ function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) wher
 
     IFC2 = apply_tols!(IFC2,tol)
 
-    return SecondOrderMatrix(IFC2, unit(pot.ϵ / pot.σ^2), tol)
+    return DenseForceConstants(IFC2, unit(pot.ϵ / pot.σ^2), tol)
 
 end
 
@@ -99,7 +92,7 @@ This function automatically zeros out the 3 modes whose frequency is
 nearest to zero which are assumed to be the rigid translation modes.
 To change this pass the kwarg `num_rigid_translation`.
 """
-function get_modes(dynmat::SecondOrderMatrix, num_rigid_translation = 3)
+function get_modes(dynmat::SecondOrderForceConstants, num_rigid_translation = 3)
 
     eig_stuff = eigen(Hermitian(dynmat.values))
     freqs_sq = eig_stuff.values
@@ -109,55 +102,3 @@ function get_modes(dynmat::SecondOrderMatrix, num_rigid_translation = 3)
     return freqs_sq, eig_stuff.vectors
 end
 
-
-function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs;
-    r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å")
-
-   h = uconvert(unit(pot.σ), h)
-   N_atoms = n_atoms(sys_eq)
-
-
-   @assert length(atom_idxs) == 2
-   @assert length(cartesian_idxs) == 2
-   @assert all(atom_idxs .<= N_atoms) && all(atom_idxs .>= 1) "Atom indexes out of range, must be in 1:$(N_atoms)"
-   @assert all(cartesian_idxs .<= 3) && all(cartesian_idxs .>= 1) "Cartesian indices must be 1, 2, or 3"
-
-   energy_unit = zero(potential(pot,1u"Å")) 
-
-   #Make mutable #& change SimpleCrystals to not use SVector
-   posns = [Vector(a) for a in positions(sys_eq)]
-
-   if atom_idxs[1] != atom_idxs[2]
-
-        energies = zeros(4)*energy_unit
-        combos = [[h,h],[-h,-h],[h,-h],[-h,h]]
-
-        for (c,combo) in enumerate(combos)
-
-            posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
-            posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
-
-            energies[c] = energy_loop(pot, posns, energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
-
-            #Un-modify
-            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
-            posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
-        end
-
-        return (1/(4*h^2))*(energies[1] + energies[2] - energies[3] - energies[4])
-    else
-        energies = zeros(3)*energy_unit
-        combos = [h,zero(pot.σ),-h]
-
-        for (c,combo) in enumerate(combos)
-            posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
-
-            energies[c] = energy_loop(pot, posns, energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
-
-            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
-        end
-
-        return (1/(h^2))*(energies[1] - 2*energies[2] + energies[3])
-
-    end
-end

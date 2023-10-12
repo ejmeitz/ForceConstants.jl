@@ -13,7 +13,6 @@ end
 
 #####################################################
 #TODO USE ATOMSBASE
-#COMMENT OUT UNIT CELL SYSTEM?
 
 struct SuperCellSystem{D,L}
     atoms::StructArray{Atom}
@@ -66,37 +65,48 @@ abstract type ThreeBodyPotential <: Potential end
 
 ########################################################
 
-# struct ForceConstants{V,N,U,T}
-#     values::Array{V,N}
-#     units::U
-#     tol::T
-# end
+abstract type AbstractForceConstant{O} end
 
-struct FC_val{V,N}
+struct DenseForceConstants{V,O,U,T} <: AbstractForceConstant{O}
+    values::Array{V,O}
+    units::U
+    tol::T
+end
+
+Base.size(fc::DenseForceConstants) = size(fc.values)
+Base.getindex(fc::DenseForceConstants{V,O}, idxs::Vararg{Integer, O}) where {V,O} = fc.values[idxs...]
+
+#type aliases
+const SecondOrderForceConstants{V,U,T} = DenseForceConstants{V,2,U,T}
+const ThirdOrderForceConstants{V,U,T} = DenseForceConstants{V,3,U,T}
+const FourthOrderForceConstants{V,U,T} = DenseForceConstants{V,4,U,T}
+
+struct FC_val{V,O}
     val::V
-    idxs::SVector{N,Int32}
+    idxs::SVector{O,Int32}
 end
 
-function FC_val(val, idxs::Vararg{Integer, N}) where N
-    return FC_val{typeof(val),N}(val, SVector(idxs))
+function FC_val(val, idxs::Vararg{Integer, O}) where O
+    return FC_val{typeof(val),O}(val, SVector(idxs))
 end
 
 
-# struct SparseForceConstants{V,N,U,T}
-#     values::AbstractVector{FC_val{V,N}}
-#     units::U
-#     tol::T
-# end
+struct SparseForceConstants{V,O,U,T} <: AbstractForceConstant{O}
+    values::AbstractVector{FC_val{V,O}}
+    units::U
+    tol::T
+end
 
-# #type aliases
-# const SecondOrderForceConstants{V,U,T} = ForceConstants{V,2,U,T}
-# const ThirdOrderForceConstants{V,U,T} = ForceConstants{V,3,U,T}
-# const FourthOrderForceConstants{V,U,T} = ForceConstants{V,4,U,T}
+#type aliases
+const SparseSecondOrder{V,U,T} = SparseForceConstants{V,2,U,T}
+const SparseThirdOrder{V,U,T} = SparseForceConstants{V,3,U,T}
+const SparseFourthOrder{V,U,T} = SparseForceConstants{V,4,U,T}
+
 
 # #Construct SparseForceConstants object from dense ForceConstants object 
-# function SparseForceConstants(fc::ForceConstants{V,N,U,T}) where {V,N,U,T}
+# function SparseForceConstants(fc::ForceConstants{V,O,U,T}) where {V,O,U,T}
 #     #TODO
-#     return SparseForceConstants{V,N,U,T}(values, fc.units, fc.tol)
+#     return SparseForceConstants{V,O,U,T}(values, fc.units, fc.tol)
 # end
 
 # Storage is multiple vectors, acts as single vector

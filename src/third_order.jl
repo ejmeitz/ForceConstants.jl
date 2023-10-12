@@ -1,13 +1,5 @@
 export third_order_IFC, third_order_test, mass_weight_sparsify_third_order, mass_weight_third_order!, F3_val
 
-mutable struct ThirdOrderMatrix{V,U,T}
-    values::Array{V,3}
-    units::U
-    tol::T
-end
-Base.size(tom::ThirdOrderMatrix) = size(tom.values)
-Base.getindex(tom::ThirdOrderMatrix, i::Integer, j::Integer, k::Integer) = tom.values[i,j,k]
-
 """
 Calculates analytical third order force constants for a pair potential (e.g. Lennard Jones).
 For pair potentials the only non-zero terms will be self-terms (e.g. i,i,i) and terms where
@@ -74,10 +66,10 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     #Give proper units
     Ψ_unit = unit(pot.ϵ / pot.σ^3)
 
-    return ThirdOrderMatrix(Ψ, Ψ_unit, tol)
+    return ForceConstants(Ψ, Ψ_unit, tol)
 end
 
-function mass_weight_third_order!(Ψ::ThirdOrderMatrix, masses::AbstractVector)
+function mass_weight_third_order!(Ψ::ThirdOrderForceConstants, masses::AbstractVector)
     N_modes = size(Ψ)[1]
     D = Int(N_modes/length(masses))
     N_atoms = length(masses)
@@ -141,35 +133,12 @@ function ϕ₃_self(sys::SuperCellSystem, pot::PairPotential, i, α, β, γ)
 end
 
 
-
-
-
-### This code isn't as useful anymore
-
-struct F3_val
-    i::Int32
-    j::Int32
-    k::Int32
-    val::Float32
-end
-
-struct ThirdOrderSparse{U,T}
-    values::Vector{F3_val}
-    units::U
-    tol::T
-end
-function ThirdOrderSparse(values, units, tol)
-    return ThirdOrderSparse{typeof(units), typeof(tol)}(values, units, tol)
-end
-Base.length(tos::ThirdOrderSparse) = length(tos.values)
-
-
 """
 Mass weights the force constant matrix such that element i,j,k is divided by
 sqrt(m_i * m_j * m_k). This is useful when converting to modal coupling constants.
 The force constants are also returned in sparse format as a vector of values and indices.
 """
-function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::AbstractVector)
+function mass_weight_sparsify_third_order(Ψ::ThirdOrderForceConstants, masses::AbstractVector)
 
     N_modes = size(Ψ)[1]
     D = Int(N_modes/length(masses))
@@ -204,7 +173,7 @@ function mass_weight_sparsify_third_order(Ψ::ThirdOrderMatrix, masses::Abstract
     @assert (count - 1) == num_nonzero
 
 
-    return ThirdOrderSparse(Ψ_non_zero_mw, Ψ.units/mass_unit, Ψ.tol)
+    return SparseForceConstants(Ψ_non_zero_mw, Ψ.units/mass_unit, Ψ.tol)
 end
 
 
@@ -262,17 +231,7 @@ function third_order_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) wher
         end
     end
 
-    #Acoustic Sum Rule #*(technically re-calculating the whole loop above here)
-    Threads.@threads for i in range(1,N_atoms)
-        for α in range(1,D)
-            for β in range(1,D)
-                for γ in range(1,D)
-                    ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(i-1) + γ
-                    Ψ[ii,jj,kk] = ϕ₃_self(sys, pot, i, α, β, γ)
-                end
-            end
-        end
-    end
+    Ψ = ASR!(Ψ, N_atoms, D)
 
     #Apply tolerances
     Ψ = apply_tols!(Ψ, tol)
@@ -280,77 +239,31 @@ function third_order_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) wher
     #Give proper units
     Ψ_unit = unit(pot.ϵ / pot.σ^3)
 
-    return ThirdOrderMatrix(Ψ, Ψ_unit, tol)
+    return DenseForceConstants(Ψ, Ψ_unit, tol)
     
 end
 
-function third_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs;
-    r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å")
 
-    h = uconvert(unit(pot.σ), h)
-    N_atoms = n_atoms(sys_eq)
+function ASR!(ifc3::Array{T,3}, N_atoms, D) where T
+    #Loop all self terms
+    Threads.@threads for i in range(1,N_atoms)
+        for α in range(1,D)
+            for β in range(1,D)
+                for γ in range(1,D)
+                    ii_self = D*(i-1) + α; jj_self = D*(i-1) + β; kk_self = D*(i-1) + γ 
 
+                    # Loop atoms k with this α, β, γ
+                    for k in range(1,N_atoms)
+                        if k != i
+                            ii = D*(i-1) + α; jj = D*(ji-1) + β; kk = D*(k-1) + γ
+                            ifc3[ii_self,jj_self,kk_self] -= ifc3[ii,jj,kk] 
+                        end
+                    end
 
-    @assert length(atom_idxs) == 3
-    @assert length(cartesian_idxs) == 3
-    @assert all(atom_idxs .<= N_atoms) && all(atom_idxs .>= 1) "Atom indexes out of range, must be in 1:$(N_atoms)"
-    @assert all(cartesian_idxs .<= 3) && all(cartesian_idxs .>= 1) "Cartesian indices must be 1, 2, or 3"
-
-    energy_unit = zero(potential(pot,1u"Å")) 
-
-    #Make mutable #& change SimpleCrystals to not use SVector
-    posns = [Vector(a) for a in positions(sys_eq)]
-    z = zero(pot.σ)
-
-    if (atom_idxs[1] != atom_idxs[2]) && (atom_idxs[1] != atom_idxs[3])
-        energies = zeros(8)*energy_unit
-        combos = [[h,h,h],[h,-h,-h],[-h,-h,h],[-h,h,-h],[-h,-h,-h],[-h,h,h],[h,-h,h],[h,h,-h]]
-
-        for (c,combo) in enumerate(combos)
-            posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
-            posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
-            posns[atom_idxs[3]][cartesian_idxs[3]] += combo[3]
-
-            energies[c] = energy_loop(pot, posns, energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
-
-            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
-            posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
-            posns[atom_idxs[3]][cartesian_idxs[3]] -= combo[3]
+                end
+            end
         end
-
-        return (1/(8*(h^3)))*(energies[1] + energies[2] + energies[3] + energies[4] -
-                 energies[5] - energies[6] - energies[7] - energies[8])
-        
-    elseif (atom_idxs[1] == atom_idxs[2]) && (atom_idxs[2] == atom_idxs[3])
-        energies = zeros(4)*energy_unit
-        combos = [[-2*h,z,z],[-h,z,z],[h,z,z],[2*h,z,z]]
-
-        for (c,combo) in enumerate(combos)
-            posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
-
-            energies[c] = energy_loop(pot, posns, energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
-
-            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
-        end
-
-        return (1/(2*(h^3)))*(energies[1] - 2*energies[2] + energies[3])
-    else #iij,iji,jii terms
-
-        #* ADD PERMUTATIONS OF THIS
-        energies = zeros(6)*energy_unit
-        combos = [[h,h,z],[-h,h,z],[z,-h,z],[-h,-h,z],[h,-h,z],[z,h,z]]
-
-        for (c,combo) in enumerate(combos)
-
-            posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
-            posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
-
-            energies[c] = energy_loop(pot, posns, energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
-
-            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
-            posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
-        end
-
-        return (1/(2*(h^3)))*(energies[1] + energies[2] + 2*energies[3] - energies[4] - energies[5] - 2*energies[6])
     end
+
+    return ifc3
 end

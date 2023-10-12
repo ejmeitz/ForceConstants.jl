@@ -1,4 +1,4 @@
-export second_order_AD_test, third_order_AD_test, fourth_order_AD_test
+export second_order_AD_test, third_order_AD_test, fourth_order_AD_test,energy_loop_mcc
 
 function second_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
     vars = make_variables(:r, D)
@@ -190,5 +190,33 @@ function fourth_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol; 
 
 
     return IFC4
+
+end
+
+
+function energy_loop_mcc(sys::SuperCellSystem{D}, pot::PairPotential, q, phi, mass_no_units) where D
+
+    inv_sqrt_masses = 1.0./(sqrt.(mass_no_units))
+    N_atoms = n_atoms(sys)
+    N_modes = D*N_atoms
+
+    posns = [inv_sqrt_masses[(i%3) + 1]*dot(q, phi[i+1,:]) for i in 0:N_modes-1]
+
+    U_total = 0.0
+    r_cut = ustrip(pot.r_cut)
+    box_sizes = ustrip.(sys.box_sizes_SC)
+
+    for i in range(1,N_atoms)
+        for j in range(i+1, N_atoms)             
+            r = posns[i:i+D-1] .- posns[j:j+D-1]
+            nearest_mirror!(r, box_sizes)
+            dist = norm(r)
+            if dist < r_cut
+                U_total += potential_nounits(pot,dist)
+            end
+        end
+    end
+
+    return U_total
 
 end

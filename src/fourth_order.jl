@@ -1,4 +1,4 @@
-export fourth_order_sparse, fourth_order_finite_diff
+export fourth_order_sparse
 
 """
 Calculates analytical fourth order force constants for a pair potential (e.g. Lennard Jones).
@@ -202,65 +202,4 @@ function ϕ₄_self(sys::SuperCellSystem, pot::PairPotential, i, α, β, γ, δ,
 
     return value
 
-end
-
-#https://arxiv.org/pdf/2104.04895.pdf
-#Eqn 9
-function fourth_order_finite_diff(sys::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs;
-     r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å")
-
-    h = uconvert(unit(pot.σ), h)
-
-    @assert length(atom_idxs) == 4
-    @assert length(cartesian_idxs) == 4
-    @assert !all(atom_idxs .== atom_idxs[1]) "Cannot check self terms with finite difference"
-
-    N_atoms = n_atoms(sys)
-
-    combos = [[h,h,h],[h,h,-h],[h,-h,h],[h,-h,-h],[-h,h,h],[-h,h,-h],[-h,-h,h],[-h,-h,-h]]
-    
-    force_unit = zero(force(pot,1u"Å")) 
-    forces = zeros(8)*force_unit
-
-    #Make mutable #& change SimpleCrystals to not use SVector
-    posns = [Vector(a) for a in positions(sys)]
-
-    for (c,combo) in enumerate(combos)
-
-        posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
-        posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
-        posns[atom_idxs[3]][cartesian_idxs[3]] += combo[3]
-
-        l = atom_idxs[4]
-        force_val = zero(force(pot,1u"Å"))  
-        #Calculate force on atom l
-        for i in range(1,N_atoms)
-            if i != l               
-                r = posns[i] .- posns[l]
-                nearest_mirror!(r, sys.box_sizes_SC)
-                dist = norm(r)
-                
-                #Make sure mirrored particle is in cuttoff
-                if dist < r_cut
-                    #Get force, potential with modified potential/ force function
-                    F_mag = force(pot, dist)
-                    
-                    r_hat = r / dist 
-                    F_ij = F_mag.*r_hat
-
-                    #Update forces and potential
-                    force_val += F_ij[cartesian_idxs[4]] #& IS THSI SIGN RIGHT??
-                end
-            end
-        end
-
-        forces[c] = force_val
-
-        #Un-modify
-        posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
-        posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
-        posns[atom_idxs[3]][cartesian_idxs[3]] -= combo[3]
-    end
-
-    return (1/(8*(h^3)))*(forces[1] - forces[2] - forces[3] + forces[4] - forces[5] + forces[6] + forces[7] - forces[8])
 end

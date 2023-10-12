@@ -1,3 +1,5 @@
+export energy_loop, force_loop
+
 #Kronicker Delta
 δₖ(x,y) = ==(x,y)
 
@@ -77,6 +79,34 @@ function energy_loop(pot::PairPotential, posns, eng_unit, r_cut, box_sizes, N_at
     return U_total
 
 end
+
+# Calculates force on atom j in β direction
+function force_loop_j(pot::PairPotential, posns, force_unit, r_cut, box_sizes, N_atoms, j, β)
+
+    D = length(box_sizes)
+    Fⱼᵦ = D*zero(force_unit)
+
+    for i in range(1,N_atoms)
+        if i != j            
+            r = posns[i] .- posns[j]
+            nearest_mirror!(r, box_sizes)
+            dist = norm(r)
+            if dist < r_cut
+                F_mag = force(pot, dist)
+                r_hat = r / dist 
+                F_ij = F_mag*r_hat
+
+                #Update forces and potential
+                Fⱼᵦ += F_ij[β]
+            end
+        end
+    end
+
+    return Fⱼᵦ
+
+end
+
+
 
 
 # """
