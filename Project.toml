@@ -20,7 +20,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 cuTENSOR = "011b41b2-24ef-40a8-b3eb-fa098493e9e1"
 
 [compat]
-SimpleCrystals = "0.1.6"
+SimpleCrystals = "0.1.7"
 TensorOperations = "4.0.0"
 julia = "1"
 

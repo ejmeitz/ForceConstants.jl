@@ -7,7 +7,7 @@ i = j and k = l (e.g. (i,i,j,j)) and terms where i = j = k (e.g. (i,i,i,j)). All
 more than 2 unique indices will be 0.
 """
 function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
-         tol; float_type = Float32, r_cut = pot.r_cut, nthreads::Integer = Threads.nthreads()) where D
+         tol; r_cut = pot.r_cut, nthreads::Integer = Threads.nthreads()) where D
 
     @assert all(r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
     
@@ -21,7 +21,7 @@ function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
     #Create storage for each thread
     χ_arrays = MultiVectorStorage(FC_val{float_type,4}, nthreads)
 
-    atoms_per_thd = cld(N_atoms,nthreads) #* DONT LIKE THIS, BAD BALANCING
+    atoms_per_thd = cld(N_atoms,nthreads) #* DONT LIKE THIS, BAD BALANCING, USE ITERATORS.PARTITION
 
     Base.@sync for thd in 1:nthreads
         Base.Threads.@spawn begin
@@ -43,7 +43,7 @@ function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
                             for β in range(1,D)
                                 for γ in range(1,D)
                                     for δ in range(1,D)
-                                        val = float_type(ustrip(ϕ₄(pot, dist, r, α, β, γ, δ)))
+                                        val = ustrip(ϕ₄(pot, dist, r, α, β, γ, δ))
                                         
                                         if abs(val) > tol
                                             # i,i,j,j terms
@@ -73,7 +73,7 @@ function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
                             for β in range(1,D)
                                 for γ in range(1,D)
                                     for δ in range(1,D)
-                                        val = -float_type(ustrip(ϕ₄(pot, dist, r, α, β, γ, δ)))
+                                        val = -ustrip(ϕ₄(pot, dist, r, α, β, γ, δ))
                                         
                                         if abs(val) > tol
                                             # j,j,j,i terms
@@ -97,16 +97,16 @@ function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
     end
 
     #Concat arrays calculated by separate threads
-    χ = convert(Vector{FC_val{float_type, 4}}, χ_arrays)
+    χ = convert(Vector{FC_val{Float64, 4}}, χ_arrays)
 
-    #Acoustic Sum Rule (i,i,i,i terms) #& how to parallelize this part?
-    for i in range(1,N_atoms)
+    #Acoustic Sum Rule (i,i,i,i terms)
+    Threads.@threads for i in range(1,N_atoms)
         for α in range(1,D)
             for β in range(1,D)
                 for γ in range(1,D)
                     for δ in range(1,D)
                         ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(i-1) + γ; ll = D*(i-1) + δ
-                        val = float_type(ϕ₄_self(sys, pot, i, α, β, γ, δ, r_cut))
+                        val = ϕ₄_self(sys, pot, i, α, β, γ, δ, r_cut)
                         if abs(val) > tol
                             push!(χ,FC_val(val, ii, jj, kk, ll))
                         end

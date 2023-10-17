@@ -18,11 +18,14 @@ else
     @warn "The GPU tests will not be run as a CUDA-enabled device is not available"
 end
 
-pot = LJ(3.4u"Å", 0.24037u"kcal * mol^-1", 8.5u"Å")
-fcc_crystal = FCC(5.2468u"Å", :Ar, SVector(4,4,4))
-sys = SuperCellSystem(fcc_crystal)
-dynmat = dynamicalMatrix(sys, pot, 1e-12);
-freqs_sq, phi = get_modes(dynmat_, 3)
+#& Check that calculating sparse 3rd equals generating it from the dense
+#& Various U_TEP tests, per mode vs total vs parallel vs serial
+
+# pot = LJ(3.4u"Å", 0.24037u"kcal * mol^-1", 8.5u"Å")
+# fcc_crystal = FCC(5.2468u"Å", :Ar, SVector(4,4,4))
+# sys = SuperCellSystem(fcc_crystal)
+# dynmat = dynamicalMatrix(sys, pot, 1e-12);
+# freqs_sq, phi = get_modes(dynmat, 3)
 
 # @testset "Supercell vs Unitcell" begin
     
@@ -54,19 +57,21 @@ freqs_sq, phi = get_modes(dynmat_, 3)
 @testset "MCC3, MCC3 Blocked" begin
     
     #Load test dataset
-    m = 39.95
-    phi, dynmat, F3, K3_actual, freqs_sq = load("./test_data/TEP.jld2", "phi", "dynmat", "F3", "K3", "freqs_sq")
-    N_modes = length(freqs_sq) #should be 96
+    if run_gpu_tests
+        m = 39.95
+        phi, dynmat, F3, K3_actual, freqs_sq = load("./test_data/TEP.jld2", "phi", "dynmat", "F3", "K3", "freqs_sq")
+        N_modes = length(freqs_sq) #should be 96
 
-    block_size = 32
-    F3 ./= sqrt(m^3)
-    K3_full = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi))
-    K3_blocked = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi), block_size)
+        block_size = 32
+        F3 ./= sqrt(m^3)
+        K3_full = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi))
+        K3_blocked = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi), block_size)
 
-    max_idx = argmax(K3_actual)
+        max_idx = argmax(K3_actual)
 
-    @test isapprox(K3_actual, K3_full, atol = 1e-6)
-    @test isapprox(K3_actual, K3_blocked, atol = 1e-6)
+        @test isapprox(K3_actual, K3_full, atol = 1e-6)
+        @test isapprox(K3_actual, K3_blocked, atol = 1e-6)
+    end
     
 end
 

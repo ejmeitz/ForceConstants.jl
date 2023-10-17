@@ -97,16 +97,8 @@ function third_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) w
         end
     end
 
-    #Acoustic Sum Rule #&TODO
-    # Threads.@threads for i in range(1, N_atoms) # index of block matrix
-    #     for α in range(1,D)
-    #         for β in range(1,D)
-    #             ii = D*(i-1) + α
-    #             jj = D*(i-1) + β # i == j because we're on diagonal
-    #             IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
-    #         end
-    #     end
-    # end
+    #Acoustic Sum Rule
+    ASR!(IFC3, N_atoms, D)
 
     IFC3 = apply_tols!(IFC3,tol)
 
@@ -114,7 +106,7 @@ function third_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) w
 
 end
 
-function fourth_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol; float_type = Float32) where D
+function fourth_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
     vars = make_variables(:r, D)
     r_norm = sqrt(sum(x -> x^2, vars))
     pot_symbolic = potential_nounits(pot, r_norm)
@@ -124,7 +116,7 @@ function fourth_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol; 
     FO_exec = make_function(fourth_order_symbolic, vars)
 
     N_atoms = n_atoms(sys)
-    IFC4 = FC_val{float_type,4}[]
+    IFC4 = FC_val{Float64,4}[]
 
     for i in range(1, N_atoms)
         for j in range(i + 1, N_atoms)
@@ -143,10 +135,10 @@ function fourth_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol; 
                                 #iiij
                                 ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(i-1) + γ; ll = D*(j-1) + δ
                                 #& THERE WILL BE DUPLICATES SINCE THIS USES PUSH INSTEAD OF JUST OVERWRITTING DATA!!!
-                                set_terms_fourth_order!(χ, ii, jj, kk, ll, float_type(iiij_block[α,β,γ,δ]))
+                                set_terms_fourth_order!(χ, ii, jj, kk, ll, iiij_block[α,β,γ,δ])
                                 #iijj
                                 ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(j-1) + γ; ll = D*(j-1) + δ
-                                set_terms_fourth_order!(χ, ii, jj, kk, ll, float_type(iiij_block[α,β,γ,δ]))
+                                set_terms_fourth_order!(χ, ii, jj, kk, ll, iiij_block[α,β,γ,δ])
                             end
                         end
                     end
@@ -167,7 +159,7 @@ function fourth_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol; 
                             if abs(iiij_block[α,β,γ,δ]) > tol
                                 #ijjj
                                 ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(j-1) + γ; ll = D*(j-1) + δ
-                                set_terms_fourth_order!(χ, ii, jj, kk, ll, float_type(ijjj_block[α,β,γ,δ]))
+                                set_terms_fourth_order!(χ, ii, jj, kk, ll, ijjj_block[α,β,γ,δ])
                             end
                         end
                     end
@@ -220,3 +212,39 @@ function energy_loop_mcc(sys::SuperCellSystem{D}, pot::PairPotential, q, phi, ma
     return U_total
 
 end
+
+#q_vars = make_variable(:q, N_modes)
+#r_vars = zeros(eltype(q_vars), length(q_vars))
+#for i in 1:N_modes
+#   r_vars[i] = dot(q_vars, phi[i,:])
+#end
+
+# divide r_vars by mass_sqrt
+
+# pass r_vars into energy_loop2
+
+# function energy_loop2(pot::PairPotential, posns, r_cut, box_sizes, N_atoms)
+
+#     U_total = 0.0
+#     box_sizes = ustrip.(box_sizes)
+
+#     for i in range(1,N_atoms)
+#         for j in range(i+1, N_atoms)             
+#             r = posns[3*(i-1) + 1: 3*i] .- posns[3*(j-1) + 1: 3*j ]
+#             nearest_mirror_AD!(r, box_sizes)
+#             dist = sqrt(sum(x-> x*x, r))
+#             # if dist < r_cut
+#             U_total += potential_nounits(pot, dist)
+#             # end
+#         end
+#     end
+
+#     return U_total
+
+# end
+
+# #& not quite right but I just wanna test the AD
+# function nearest_mirror_AD!(r_ij, box_sizes)
+#     r_ij .+= sign.(r_ij .- box_sizes./2) .* box_sizes
+#     return r_ij
+# end

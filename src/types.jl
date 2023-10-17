@@ -1,5 +1,6 @@
 export SuperCellSystem, Potential, PairPotential, ThreeBodyPotential,
-    masses, mass, position, positions, charges, charge, n_atoms, n_atoms_per_uc
+    masses, mass, position, positions, charges, charge, n_atoms, n_atoms_per_uc,
+    SparseForceConstants, DenseForceConstants
 
 struct Atom{P,C,M}
     position::P
@@ -75,6 +76,8 @@ end
 
 Base.size(fc::DenseForceConstants) = size(fc.values)
 Base.getindex(fc::DenseForceConstants{O}, idxs::Vararg{Integer, O}) where O = fc.values[idxs...]
+Base.getindex(fc::DenseForceConstants{O}, idxs::CartesianIndex{O}) where O = fc.values[idxs]
+
 n_modes(fc::DenseForceConstants) = size(fc)[1]
 
 #type aliases
@@ -93,42 +96,58 @@ function FC_val(val, idxs::Vararg{Integer, O}) where O
     return FC_val{typeof(val), O}(val, Vector{Int32}(idxs))
 end
 
+function FC_val(val, idxs::AbstractVector{<:Integer})
+    return FC_val{typeof(val), length(idxs)}(val, Int32.(idxs))
+end
+
+function FC_val(val, idxs::Tuple)
+    return FC_val{typeof(val), length(idxs)}(val, collect(idxs))
+end
+
 
 struct SparseForceConstants{O,V,U,T} <: AbstractForceConstants{O}
-    values::AbstractVector{FC_val{V,O}} #& MAKE THIS A STRUCT ARRAY???
+    values::StructArray{FC_val{V,O}} #1 entry per DoF
     units::U
     tol::T
 end
 
-# struct SparseForceConstantsTest{O,V,U,T} <: AbstractForceConstant{O}
-#     values::StructArray{FC_val{V,O}} #& MAKE THIS A STRUCT ARRAY???
-#     units::U
-#     tol::T
-# end
-
-Base.length(fc::SparseForceConstants) = length(fc.values)
+Base.length(fc::SparseForceConstants) = sum(length.(fc.values))
 
 #type aliases
 const SparseSecondOrder{V,U,T} = SparseForceConstants{2,V,U,T}
 const SparseThirdOrder{V,U,T} = SparseForceConstants{3,V,U,T}
 const SparseFourthOrder{V,U,T} = SparseForceConstants{4,V,U,T}
 
+function SparseForceConstants(vals::Vector{FC_val{V, O}}, units, tol) where {V,O}
+    return SparseForceConstants{O, V, typeof(units), typeof(tol)}(StructArray(vals), units, tol)
+end
 
 # #Construct SparseForceConstants object from dense ForceConstants object 
-function SparseForceConstants(fc::ForceConstants{O,V,U,T}) where {O,V,U,T}
-    N_modes = size(fc)[1]
-    
-    idxs = with_replacement_combinations(1:N_modes, O)
-    values = FC_Val{V,O}[]
-    for idx in idxs
-        if fc[idx...] != 0.0
-            for perm in permutations(idx)
-                push!(values, FC_Val(fc[perm...], perm...))
-            end
+function SparseForceConstants(fc::DenseForceConstants{O,V,U,T}; nthreads::Integer = Threads.nthreads()) where {O,V,U,T}
+   
+    num_nonzero = sum(fc.values .!= 0.0)
+    sa = StructArray{FC_val{V,O}}(undef, (num_nonzero,))
+
+    count = 1
+    for idx in CartesianIndices(fc.values)
+        if fc[idx] != 0.0
+            sa[count] = FC_val(fc[idx],Tuple(idx))
+            count += 1
         end
     end
 
-    return SparseForceConstants{O,V,U,T}(values, fc.units, fc.tol)
+    return SparseForceConstants{O,V,U,T}(sa, fc.units, fc.tol)
+end
+
+#&NEED TO TEST THIS
+function sort_by_mode(sfc::SparseForceConstants{O,V}, n_dof::Integer) where {O,V}
+    data = Vector{StructArray{FC_val{V,O}}}(undef, n_dof)
+
+    for fc in sfc.values
+        data[fc.idxs[1]] = fc
+    end
+
+    return data
 end
 
 # Storage is multiple vectors, acts as single vector

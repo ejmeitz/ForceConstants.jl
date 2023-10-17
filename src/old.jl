@@ -19,6 +19,12 @@
 #    return mapreduce(f, +, cuF3_sparse_mw)
 # end
 
+# function test(cuF3_sparse_mw::CuArray{F3_val}, q::CuArray{Float32,1})
+#     f = (f3_data) -> f3_data.val * q[f3_data.i] * q[f3_data.j] * q[f3_data.k]
+#    return mapreduce(f, +, cuF3_sparse_mw)
+# end
+
+
 # """
 # Takes in sparse third order data that has already been mass weighted
 

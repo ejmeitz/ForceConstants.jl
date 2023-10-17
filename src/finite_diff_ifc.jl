@@ -15,8 +15,7 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
 
    energy_unit = zero(potential(pot,1u"Å")) 
 
-   #Make mutable #& change SimpleCrystals to not use SVector
-   posns = [Vector(a) for a in positions(sys_eq)]
+   posns = positions(sys_eq)
 
    if atom_idxs[1] != atom_idxs[2]
 
@@ -61,9 +60,8 @@ function third_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential,
 
    @assert length(atom_idxs) == 3
    @assert length(cartesian_idxs) == 3
-   @assert !all(atom_idxs .== atom_idxs[1]) "Cannot check self terms with finite difference"
 
-   N_atoms = n_atoms(sys)
+   N_atoms = n_atoms(sys_eq)
 
    z = zero(pot.σ)
    combos = [[z,h,-h],[z,h,h],[z,-h,h],[z,-h,-h]]
@@ -71,15 +69,14 @@ function third_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential,
    force_unit = zero(force(pot,1u"Å")) 
    forces = zeros(4)*force_unit
 
-   #Make mutable #& change SimpleCrystals to not use SVector
-   posns = [Vector(a) for a in positions(sys)]
+   posns = positions(sys_eq)
 
    for (c,combo) in enumerate(combos)
 
        posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
        posns[atom_idxs[3]][cartesian_idxs[3]] += combo[3]
 
-       forces[c] = force_loop_j(pot, posns, force_unit, r_cut, sys.box_sizes_SC, N_atoms, atom_idxs[1], cartesian_idxs[1])
+       forces[c] = force_loop_j(pot, posns, force_unit, r_cut, sys_eq.box_sizes_SC, N_atoms, atom_idxs[1], cartesian_idxs[1])
 
        posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
        posns[atom_idxs[3]][cartesian_idxs[3]] -= combo[3]
@@ -98,16 +95,15 @@ function fourth_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
    @assert length(cartesian_idxs) == 4
    @assert !all(atom_idxs .== atom_idxs[1]) "Cannot check self terms with finite difference"
 
-   N_atoms = n_atoms(sys)
+   N_atoms = n_atoms(sys_eq)
 
    combos = [[h,h,h],[h,h,-h],[h,-h,h],[h,-h,-h],[-h,h,h],[-h,h,-h],[-h,-h,h],[-h,-h,-h]]
    
    force_unit = zero(force(pot,1u"Å")) 
    forces = zeros(8)*force_unit
 
-   #Make mutable #& change SimpleCrystals to not use SVector
-   posns = [Vector(a) for a in positions(sys)]
-
+   posns = positions(sys_eq)
+   
    for (c,combo) in enumerate(combos)
 
        posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
@@ -120,7 +116,7 @@ function fourth_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
        for i in range(1,N_atoms)
            if i != l               
                r = posns[i] .- posns[l]
-               nearest_mirror!(r, sys.box_sizes_SC)
+               nearest_mirror!(r, sys_eq.box_sizes_SC)
                dist = norm(r)
                
                #Make sure mirrored particle is in cuttoff
@@ -148,48 +144,28 @@ function fourth_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
    return (1/(8*(h^3)))*(forces[1] - forces[2] - forces[3] + forces[4] - forces[5] + forces[6] + forces[7] - forces[8])
 end
 
+#& CURRENTLY DIFFERS by -1 FROM MINE
 function check_ifc(sys::SuperCellSystem{D}, ifc::DenseForceConstants{O}, pot::PairPotential, n_points;
     r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å") where {D,O}
 
     N_atoms = n_atoms(sys)
-    ri = rand(1:N_atoms, (n_points,O)) #random indexes
+    ri = rand(1:N_atoms, (n_points,O)) #random atom indexes
     rci = rand(1:D, (n_points, O)) #random cartesian indexes
 
     finite_diff_funcs = [second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff]
     finite_diff_func = finite_diff_funcs[O-1]
 
-    ifc_fd = zeros(n_points)*ifc.units
-    #& ONLY WORKS FOR SPECIFIC DIMENSION
-    ifc_actual = [ifc[D*(ri[i,1] - 1) + rci[i,1], D*(ri[i,2] - 1) + rci[i,2]] for i in 1:n_points]
-    # ifc_actual = [ifc[D*(ri[i,1] - 1) + rci[i,1], D*(ri[i,2] - 1) + rci[i,2], D*(ri[i,3] - 1) + rci[i,3]]
-    #                  for i in 1:n_points]
+    idxs = (ri_row, rci_row) -> [D*(ri_row[o] - 1) + rci_row[o] for o in 1:O]
+    ifc_actual = @views [ifc[idxs(ri[i,:], rci[i,:])...] for i in 1:n_points]
  
+    ifc_fd = zeros(n_points)*ifc.units
     for i in 1:n_points
-        ifc_fd[i] = finite_diff_func(sys, pot, ri[i,:], rci[i,:]; r_cut = r_cut, h = h)
+        val = finite_diff_func(sys, pot, ri[i,:], rci[i,:]; r_cut = r_cut, h = h)
+        if ustrip.(abs(val)) > ifc.tol
+            ifc_fd[i] = val
+        end
     end
 
     return ifc_fd, (ifc_actual.*ifc.units)
-
-end
-
-function check_ifc(sys::SuperCellSystem{D}, ifc::SparseForceConstants{O}, pot::PairPotential, n_points;
-    r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å") where {D,O}
-
-    random_idxs = rand(1:length(ifc), (n_points,)) 
-
-    finite_diff_funcs = [second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff]
-    finite_diff_func = finite_diff_funcs[O-1]
-
-    ifc_fd = zeros(n_points)*ifc.units
-    ifc_actual = value.(ifc[random_idxs])
- 
-    for p in 1:n_points
-        idxs = idx(ifc[random_idxs[p]])
-        cart_idxs = ((idxs .- 1) .% D) .+ 1
-        atom_idxs = ((idxs .- cart_idxs) ./ D) .- 1
-        ifc_fd[p] = finite_diff_func(sys, pot, atom_idxs, cart_idxs; r_cut = r_cut, h = h)
-    end
-
-    return ifc_fd,  (ifc_actual.*ifc.units)
 
 end

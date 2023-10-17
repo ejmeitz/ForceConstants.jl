@@ -73,46 +73,64 @@ function mcc3_blocked!(K3::CuArray{Float32, 3}, Ψ::CuArray{Float32, 3}, phi::Cu
 end
 
 
-const BLOCK_SIZE = 128
+# using CUDA
+# import CUDA: i32
+# N = 10000000
+# N_modes = 768;
+# rand_nums = CUDA.rand(N);
+# rand_idxs = rand(1:N_modes, (N,3));
+# is = CuArray{Int32}(rand_idxs[:,1])
+# js = CuArray{Int32}(rand_idxs[:,2])
+# ks = CuArray{Int32}(rand_idxs[:,3])
 
-#Each thread calculates fiber of K_nml
-function mcc3_custom_kernel(num_psi_idxs::Int32, mcc::CuDeviceArray{Float32,1}, phi::CuDeviceArray{Float32,2},
-         Ψ_vals::CuDeviceArray, is::CuDeviceArray{Int32,1}, js::CuDeviceArray{Int32,1}, ks::CuDeviceArray{Int32,1}) 
+# phi = CUDA.rand(N_modes, N_modes)
+# mcc_all = zeros(Float32, (N_modes, N_modes, N_modes))
 
-    n = (blockIdx().x-1i32) * blockDim().x + threadIdx().x
-    m = (blockIdx().y-1i32) * blockDim().y + threadIdx().y
-    linearThreadIdx = (blockDim().x * threadIdx().y) + threadIdx().x #& OFF BY 1 iSSUES?
-
-    #To store rows of phi matrix needed by current values of Psi
-    phi_i = CuStaticSharedArray(Float32, BLOCK_SIZE)
-    phi_j = CuStaticSharedArray(Float32, BLOCK_SIZE)
-    phi_k = CuStaticSharedArray(Float32, BLOCK_SIZE)
+# #256 x 256 x N_modes
+# mcc_chunk_size = 256
+# mcc_chunk = CUDA.zeros(Float32, (mcc_chunk_size, mcc_chunk_size, N_modes))
 
 
-    # Treat thread index as index into Ψ now and accumulate values into MCC
-    for i in 1:BLOCK_SIZE:num_psi_idxs
-        psi_idx = i + linearThreadIdx
+# #CUDA THREAD DIMENSIONS
+# const BLOCK_SIDE::Int32 = 32
+# const BLOCK_SIZE::Int32 = BLOCK_SIDE*BLOCK_SIDE
 
-        if psi_idx <= num_psi_idxs
-            #Move Phi Data Into Shared Memory
-            phi_i[linearThreadIdx] = phi[is[psi_idx]]
-            phi_j[linearThreadIdx] = phi[js[psi_idx]]
-            phi_k[linearThreadIdx] = phi[ks[psi_idx]] #& This might be the only one that needs to be in shared mem
-            sync_threads()
+# const GRID_SIDE::Int64 = Int64(ceil(mcc_chunk_size/BLOCK_SIDE))
+# @cuda blocks = (GRID_SIDE,GRID_SIDE) threads = (BLOCK_SIDE,BLOCK_SIDE) mcc3_custom_kernel(Int32(N), Int32(0), Int32(N_modes), mcc_chunk, phi,rand_nums,is,js,ks)
 
-            #Calculate fiber of MCC
-            for l in 1:N_modes
-                mcc[n,m,l] += Ψ_vals[psi_idx]*phi_i[n]*phi_j[m]*phi_k[l]
-            end
-            sync_threads()
+# #Each thread calculates fiber of K_nml
+# function mcc3_custom_kernel(num_psi_idxs::Int32, mcc_offset::Int32, N_modes::Int32, mcc_block::CuDeviceArray{Float32,3}, phi::CuDeviceArray{Float32,2},
+#     Ψ_vals::CuDeviceArray{Float32,1}, is::CuDeviceArray{Int32,1}, js::CuDeviceArray{Int32,1}, ks::CuDeviceArray{Int32,1}) 
 
-        end
-    end
+#     n::Int32 = (blockIdx().x-1i32) * blockDim().x + threadIdx().x
+#     m::Int32 = (blockIdx().y-1i32) * blockDim().y + threadIdx().y
+#     @cuprintln "$n $m"
+#     linearThreadIdx::Int32 = (blockDim().x * (threadIdx().y-1i32)) + threadIdx().x #& OFF BY 1 iSSUES?
 
-end
+#     #To store rows of phi matrix needed by current values of Psi
+#     phi_i = CuStaticSharedArray(Float32, BLOCK_SIZE)
+#     phi_j = CuStaticSharedArray(Float32, BLOCK_SIZE)
+#     phi_k = CuStaticSharedArray(Float32, BLOCK_SIZE)
 
-# const BLOCK_SIDE = 32
-# const GRID_SIDE = ceil(sqrt(N)/BLOCK_SIDE)
-# @cuda blocks = (GRID_SIDE,GRID_SIDE) threads = (BLOCK_SIDE,BLOCK_SIDE) mcc3_custom_kernel(
+#     # Treat thread index as index into Ψ now and accumulate values into MCC
+#     for i in 1:BLOCK_SIZE:num_psi_idxs
+#         psi_idx::Int32 = i + linearThreadIdx
 
-# )
+#         if psi_idx <= num_psi_idxs
+#             #Move Phi Data Into Shared Memory
+#             phi_i[linearThreadIdx] = phi[is[psi_idx],linearThreadIdx] #* this read is not in order of memory
+#             phi_j[linearThreadIdx] = phi[js[psi_idx],linearThreadIdx]
+#             phi_k[linearThreadIdx] = phi[ks[psi_idx],linearThreadIdx] #& This might be the only one that needs to be in shared mem
+#             CUDA.sync_threads()
+
+#             #Calculate fiber of MCC
+#             # if m >= n #* this could make it slower??
+#             for l in 1:N_modes
+#                 mcc_block[n,m,l] += Ψ_vals[psi_idx]*phi_i[n + mcc_offset]*phi_j[m + mcc_offset]*phi_k[l]
+#             end
+#             # end
+#             CUDA.sync_threads()
+#         end
+#     end
+#     return
+# end
