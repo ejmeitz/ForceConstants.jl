@@ -169,3 +169,25 @@ function check_ifc(sys::SuperCellSystem{D}, ifc::DenseForceConstants{O}, pot::Pa
     return ifc_fd, (ifc_actual.*ifc.units)
 
 end
+
+function check_ifc(sys::SuperCellSystem{D}, ifc::SparseForceConstants{O}, pot::PairPotential, n_points;
+    r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å") where {D,O}
+
+    random_idxs = rand(1:length(ifc), (n_points,)) 
+
+    finite_diff_funcs = [second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff]
+    finite_diff_func = finite_diff_funcs[O-1]
+
+    ifc_fd = zeros(n_points)*ifc.units
+    ifc_actual = value.(ifc[random_idxs])
+ 
+    for p in 1:n_points
+        idxs = idx(ifc[random_idxs[p]])
+        cart_idxs = ((idxs .- 1) .% D) .+ 1
+        atom_idxs = ((idxs .- cart_idxs) ./ D) .- 1
+        ifc_fd[p] = finite_diff_func(sys, pot, atom_idxs, cart_idxs; r_cut = r_cut, h = h)
+    end
+
+    return ifc_fd,  (ifc_actual.*ifc.units)
+
+end

@@ -82,8 +82,15 @@ function third_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
         nthreads = N_atoms
     end
 
+    #Can help with SIMD later
+    if (N_atoms <= typemax(Int16))
+        int_type = Int16
+    else
+        int_type = Int32
+    end
+
     #Create storage for each thread
-    Ψ_arrays = MultiVectorStorage(FC_val{Float64,3}, nthreads)
+    Ψ_arrays = MultiVectorStorage(F3_val{Float64,int_type}, nthreads)
     atoms_per_thd = cld(N_atoms,nthreads) #* DONT LIKE THIS, BAD BALANCING, USE ITERATORS.PARTITION
 
     Base.@sync for thd in 1:nthreads

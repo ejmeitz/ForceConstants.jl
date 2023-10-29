@@ -1,6 +1,6 @@
 export SuperCellSystem, Potential, PairPotential, ThreeBodyPotential,
     masses, mass, position, positions, charges, charge, n_atoms, n_atoms_per_uc,
-    SparseForceConstants, DenseForceConstants
+    SparseForceConstants, DenseForceConstants, F3_val, F4_val
 
 struct Atom{P,C,M}
     position::P
@@ -67,6 +67,7 @@ abstract type ThreeBodyPotential <: Potential end
 ########################################################
 
 abstract type AbstractForceConstants{O} end
+abstract type FC_val{V,I} end
 
 struct DenseForceConstants{O,V,U,T} <: AbstractForceConstants{O}
     values::Array{V,O}
@@ -85,28 +86,36 @@ const SecondOrderForceConstants{V,U,T} = DenseForceConstants{2,V,U,T}
 const ThirdOrderForceConstants{V,U,T} = DenseForceConstants{3,V,U,T}
 const FourthOrderForceConstants{V,U,T} = DenseForceConstants{4,V,U,T}
 
-struct FC_val{V,O}
+struct F4_val{V,I} <: FC_val{V,I} #Int16 is usually fine and helps with SIMD
     val::V
-    idxs::Vector{Int32}
+    i::I
+    j::I
+    k::I
+    l::I
 end
+
+struct F3_val{V,I} <: FC_val{V,I} #Int16 is usually fine and helps with SIMD
+    val::V
+    i::I
+    j::I
+    k::I
+end
+
 value(fcv::FC_val) = fcv.val
-idx(fcv::FC_val) = fcv.idxs
+idx(fc::F3_val) = [fc.i,fc.j,fc.k]
+idx(fc::F4_val) = [fc.i,fc.j,fc.k,fc.l]
 
-function FC_val(val, idxs::Vararg{Integer, O}) where O
-    return FC_val{typeof(val), O}(val, Vector{Int32}(idxs))
+function FC_val(val, idxs::Vararg{Integer, 3})
+    return F3_val{typeof(val), eltype(idxs)}(val, idxs...)
 end
 
-function FC_val(val, idxs::AbstractVector{<:Integer})
-    return FC_val{typeof(val), length(idxs)}(val, Int32.(idxs))
-end
-
-function FC_val(val, idxs::Tuple)
-    return FC_val{typeof(val), length(idxs)}(val, collect(idxs))
+function FC_val(val, idxs::Vararg{Integer, 4})
+    return F4_val{typeof(val), eltype(idxs)}(val, idxs...)
 end
 
 
 struct SparseForceConstants{O,V,U,T} <: AbstractForceConstants{O}
-    values::StructArray{FC_val{V,O}} #1 entry per DoF
+    values::StructArray{<:FC_val{V,I}} #1 entry per DoF
     units::U
     tol::T
 end
@@ -131,7 +140,7 @@ function SparseForceConstants(fc::DenseForceConstants{O,V,U,T}; nthreads::Intege
     count = 1
     for idx in CartesianIndices(fc.values)
         if fc[idx] != 0.0
-            sa[count] = FC_val(fc[idx],Tuple(idx))
+            sa[count] = FC_val(fc[idx], Tuple(idx)...)
             count += 1
         end
     end
@@ -140,15 +149,15 @@ function SparseForceConstants(fc::DenseForceConstants{O,V,U,T}; nthreads::Intege
 end
 
 #&NEED TO TEST THIS
-function sort_by_mode(sfc::SparseForceConstants{O,V}, n_dof::Integer) where {O,V}
-    data = Vector{StructArray{FC_val{V,O}}}(undef, n_dof)
+# function sort_by_mode(sfc::SparseForceConstants{O,V}, n_dof::Integer) where {O,V}
+#     data = Vector{StructArray{FC_val{V,O}}}(undef, n_dof)
 
-    for fc in sfc.values
-        data[fc.idxs[1]] = fc
-    end
+#     for fc in sfc.values
+#         data[fc.idxs[1]] = fc
+#     end
 
-    return data
-end
+#     return data
+# end
 
 # Storage is multiple vectors, acts as single vector
 # Allows for multi-threaded construction
@@ -173,3 +182,4 @@ end
 function Base.convert(::Type{Vector{T}}, mvs::MultiVectorStorage{T}) where T
     return reduce(vcat, mvs.data)
 end
+

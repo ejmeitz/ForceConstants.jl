@@ -12,7 +12,7 @@ struct LJ{S,E,R,U,F} <: PairPotential
     F_cut::F
 end
 
-function LJ(σ, ϵ, r_cut; shift_potential = true)
+function LJ(σ, ϵ, r_cut)
     #Values for U_cut and F_cut are unknown at this point
     temp = LJ{typeof(σ),typeof(ϵ),typeof(r_cut),Integer,Integer}(σ, ϵ, r_cut, 0, 0)
 

@@ -18,20 +18,28 @@ function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
         nthreads = N_atoms
     end
 
+    if (N_atoms <= typemax(Int16)) #* this probably causes type instabilitiy
+        int_type = Int16
+    else
+        int_type = Int32
+    end
+
+
     #Create storage for each thread
-    χ_arrays = MultiVectorStorage(FC_val{float_type,4}, nthreads)
+    χ_arrays = MultiVectorStorage(F4_val{Float64,int_type}, nthreads)
 
     atoms_per_thd = cld(N_atoms,nthreads) #* DONT LIKE THIS, BAD BALANCING, USE ITERATORS.PARTITION
+
 
     Base.@sync for thd in 1:nthreads
         Base.Threads.@spawn begin
             χ_thd = χ_arrays.data[thd] #Get local storage for force constants
-            start_idx = (thd-1)*atoms_per_thd + 1
-            end_idx = min(thd*atoms_per_thd, N_atoms)
+            start_idx = int_type((thd-1)*atoms_per_thd + 1)
+            end_idx = int_type(min(thd*atoms_per_thd, N_atoms))
 
             r = zeros(D)*unit(sys.atoms.position[1][1]) #pre-allocate
             for i in range(start_idx, end_idx)
-                for j in range(i+1,N_atoms)
+                for j in range(int_type(i+1),N_atoms)
 
                     # i,i,i,j terms
                     r .= sys.atoms.position[i] .- sys.atoms.position[j]
@@ -47,13 +55,13 @@ function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
                                         
                                         if abs(val) > tol
                                             # i,i,j,j terms
-                                            ii = D*(i-1) + α; jj = D*(i-1) + β
-                                            kk = D*(j-1) + γ; ll = D*(j-1) + δ
+                                            ii = int_type(D*(i-1) + α); jj = int_type(D*(i-1) + β)
+                                            kk = int_type(D*(j-1) + γ); ll = int_type(D*(j-1) + δ)
                                             set_terms_fourth_order!(χ_thd, ii, jj, kk, ll, val)
 
                                             # i,i,i,j terms
-                                            ii = D*(i-1) + α; jj = D*(i-1) + β
-                                            kk = D*(i-1) + γ; ll = D*(j-1) + δ
+                                            ii = int_type(D*(i-1) + α); jj = int_type(D*(i-1) + β)
+                                            kk = int_type(D*(i-1) + γ); ll = int_type(D*(j-1) + δ)
                                             set_terms_fourth_order!(χ_thd, ii, jj, kk, ll, -val)
 
                                         end
@@ -77,8 +85,8 @@ function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
                                         
                                         if abs(val) > tol
                                             # j,j,j,i terms
-                                            ii = D*(i-1) + α; jj = D*(j-1) + β
-                                            kk = D*(j-1) + γ; ll = D*(j-1) + δ
+                                            ii = int_type(D*(i-1) + α); jj = int_type(D*(j-1) + β)
+                                            kk = int_type(D*(j-1) + γ); ll = int_type(D*(j-1) + δ)
                                             set_terms_fourth_order!(χ_thd, ii, jj, kk, ll, val)
 
                                             #&  j,j,i,i terms just same as above
@@ -97,15 +105,17 @@ function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
     end
 
     #Concat arrays calculated by separate threads
-    χ = convert(Vector{FC_val{Float64, 4}}, χ_arrays)
+    χ = reduce(vcat, χ_arrays.data)
 
     #Acoustic Sum Rule (i,i,i,i terms)
+    #* Accumulate these in the loop above
     Threads.@threads for i in range(1,N_atoms)
         for α in range(1,D)
             for β in range(1,D)
                 for γ in range(1,D)
                     for δ in range(1,D)
-                        ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(i-1) + γ; ll = D*(i-1) + δ
+                        ii = int_type(D*(i-1) + α); jj = int_type(D*(i-1) + β);
+                        kk = int_type(D*(i-1) + γ); ll = int_type(D*(i-1) + δ)
                         val = ϕ₄_self(sys, pot, i, α, β, γ, δ, r_cut)
                         if abs(val) > tol
                             push!(χ,FC_val(val, ii, jj, kk, ll))
@@ -203,3 +213,18 @@ function ϕ₄_self(sys::SuperCellSystem, pot::PairPotential, i, α, β, γ, δ,
     return value
 
 end
+
+
+function mass_weight_fourth_order!(ifc4::SparseForceConstants{4}, masses)
+    mass_unit = unit(masses[1])
+    masses = ustrip.(masses)
+
+    for (i,v) in enumerate(eachindex(ifc4.values))
+        ifc4.values[i].val /= sqrt.(masses[v.idxs])
+    end
+
+    ifc4.units /= mass_unit
+    return ifc4
+end
+
+

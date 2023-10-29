@@ -21,11 +21,15 @@ end
 #& Check that calculating sparse 3rd equals generating it from the dense
 #& Various U_TEP tests, per mode vs total vs parallel vs serial
 
-# pot = LJ(3.4u"Å", 0.24037u"kcal * mol^-1", 8.5u"Å")
-# fcc_crystal = FCC(5.2468u"Å", :Ar, SVector(4,4,4))
-# sys = SuperCellSystem(fcc_crystal)
-# dynmat = dynamicalMatrix(sys, pot, 1e-12);
-# freqs_sq, phi = get_modes(dynmat, 3)
+pot = LJ(3.4u"Å", 0.24037u"kcal * mol^-1", 8.5u"Å")
+fcc_crystal = FCC(5.2468u"Å", :Ar, SVector(4,4,4))
+sys = SuperCellSystem(fcc_crystal)
+dynmat = dynamicalMatrix(sys, pot, 1e-12);
+freqs_sq, phi = get_modes(dynmat, 3)
+ifc3 = third_order_IFC(sys, pot, 1e-12)
+m = 39.95
+ifc3_mw = mass_weight_third_order!(ifc3, m*ones(length(fcc_crystal)))
+K3 = mcc3(CuArray{Float32}(ifc3_mw.values), CuArray{Float32}(phi), 256, 1e-12)
 
 # @testset "Supercell vs Unitcell" begin
     
@@ -90,4 +94,5 @@ end
 # xlabel!("k_x")
 # ylabel!("ω [THz]")
 # savefig("C:/Users/ejmei/Desktop/test.png")
+
 

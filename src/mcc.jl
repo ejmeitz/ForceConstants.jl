@@ -72,6 +72,79 @@ function mcc3_blocked!(K3::CuArray{Float32, 3}, Ψ::CuArray{Float32, 3}, phi::Cu
     return K3
 end
 
+function mcc4_stupid!(ifc4_mw::SparseForceConstants{4}, phi, tol; nthreads = Threads.nthreads())
+   
+    mcc_idxs = with_replacement_combinations(1:N_modes, 4) #a casual 14 billion for 4th order
+
+    chunks = Iterators.partition(mcc_idxs, cld(length(mcc_idxs), nthreads))
+
+    @assert length(chunks) == nthreads
+
+    tasks = map(chunks) do chunk
+
+        Base.Threads.@spawn begin
+            χ_thd = FC_val{Float64, 4}[]
+            
+            #& do on GPU with mapreduce??
+            for mcc_idx in chunk #* this is incredibly slow, indexes being Int16 helps
+                mcc_val = 0.0
+                phi_n = view(phi,:,mcc_idx[1]); phi_m = view(phi,:,mcc_idx[2])
+                phi_l = view(phi,:,mcc_idx[3]); phi_o = view(phi,:,mcc_idx[4])
+                @turbo for idx in eachindex(ifc4.values)
+                    mcc_val += vals[idx] * phi_n[is[idx]] * phi_m[js[idx]] * phi_l[ks[idx]] * phi_o[os[idx]]
+                end
+
+                if abs(mcc_val) > tol
+                    push!(χ_thd, mcc_val)
+                end
+            end
+
+            χ_thd
+        end
+    end
+
+    χ_sparse_arrays = fetch.(tasks)
+    return reduce(vcat, χ_sparse_arrays) #combine into one array
+
+end
+
+#& re-write to take CuArray since we dont want to move to GPU every time we calculate
+# function gpu_k4_kernel_SA(cuF4mw::StructArray{F4_val}, cuPhi1, cuPhi2, cuPhi3, cuPhi4)
+#     #Define function for map-reduce
+#     f = (f4_data) -> f4_data.v * cuPhi1[f4_data.i] * cuPhi2[f4_data.j] * cuPhi3[f4_data.k] * cuPhi4[f4_data.l]
+#    return mapreduce(f, +, cuF4mw)
+# end
+
+# function gpu_k4_kernel(cuF4mw::CuArray{F4_val}, cuPhi1, cuPhi2, cuPhi3, cuPhi4)
+#     #Define function for map-reduce
+#     f = (f4_data) -> f4_data.v * cuPhi1[f4_data.i] * cuPhi2[f4_data.j] * cuPhi3[f4_data.k] * cuPhi4[f4_data.l]
+#    return mapreduce(f, +, cuF4mw)
+# end
+
+# struct F4_val
+#     v::Float32
+#     i::Int32
+#     j::Int32
+#     k::Int32
+#     l::Int32
+# end
+
+
+# N_modes = 768
+# N = 20000000
+# q = rand(Float32, N_modes)
+# random_numbers = rand(Float32,N);
+# random_idxs = Int32.(rand(1:N_modes,(N,4)))
+# sparse_test = [F4_val(random_numbers[i], random_idxs[i,:]...) for i in 1:N]
+# sparse_test_SA = StructArray{F4_val}(v = random_numbers, i = random_idxs[:,1], j = random_idxs[:,2], k = random_idxs[:,3], l = random_idxs[:,4])
+# cuF4mw = replace_storage(CuArray, sparse_test_SA)
+# phi = rand(N_modes, N_modes)
+# cuPhi = CuArray{Float32}(phi)
+# gpu_k4_kernel_SA(cuF4mw, view(cuPhi,:,13), view(cuPhi,:,131), view(cuPhi,:,245), view(cuPhi,:,613))
+# cuF4_vec = CuArray(sparse_test)
+# gpu_k4_kernel(cuF4_vec,view(cuPhi,:,13), view(cuPhi,:,131), view(cuPhi,:,245), view(cuPhi,:,613))
+
+#################################
 
 # using CUDA
 # import CUDA: i32
