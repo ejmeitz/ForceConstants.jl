@@ -22,6 +22,7 @@ import CUDA: i32 #TODO: move to weakdep https://pkgdocs.julialang.org/v1/creatin
 include("types.jl")
 include("helper_funcs.jl")
 include("interactions/LennardJones.jl")
+include("interactions/SW.jl")
 include("second_order.jl")
 include("third_order.jl")
 include("fourth_order.jl")

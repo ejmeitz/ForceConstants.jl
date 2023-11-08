@@ -69,7 +69,7 @@ abstract type ThreeBodyPotential <: Potential end
 abstract type AbstractForceConstants{O} end
 abstract type FC_val{V,I} end
 
-struct DenseForceConstants{O,V,U,T} <: AbstractForceConstants{O}
+mutable struct DenseForceConstants{O,V,U,T} <: AbstractForceConstants{O}
     values::Array{V,O}
     units::U
     tol::T

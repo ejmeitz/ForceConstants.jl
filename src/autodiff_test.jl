@@ -14,13 +14,85 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) 
         for j in range(i + 1, N_atoms)
 
             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
-            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
+            rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
 
             ij_block = H_exec(ustrip.(rᵢⱼ))
 
             IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .= ij_block
             IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .= ij_block
 
+        end
+    end
+
+    #Acoustic Sum Rule
+    Threads.@threads for i in range(1, N_atoms) # index of block matrix
+        for α in range(1,D)
+            for β in range(1,D)
+                ii = D*(i-1) + α
+                jj = D*(i-1) + β # i == j because we're on diagonal
+                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
+            end
+        end
+    end
+
+    IFC2 = apply_tols!(IFC2,tol)
+
+    return SecondOrderMatrix(IFC2, unit(pot.ϵ / pot.σ^2), tol)
+
+end
+
+function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon, tol; r_cut = pot.r_cut) where D
+    vars = make_variables(:r, D)
+    r_norm = sqrt(sum(x -> x^2, vars))
+    #2nd order part 
+    pot2_symbolic = pair_potential_nounits(pot, r_norm)
+    H2_symbolic = hessian(pot2_symbolic, vars)
+    H2_exec = make_function(H2_symbolic, vars)
+
+    #3rd order part(s)
+    pot3_symbolic = threebody_potential_nounits(pot, r_norm)
+    H3_symbolic = hessian(pot3_symbolic, vars)
+    H3_exec = make_function(H3_symbolic, vars)
+
+    N_atoms = n_atoms(sys)
+    IFC2 = zeros(D*N_atoms,D*N_atoms)
+
+    for i in range(1, N_atoms)
+        for j in range(i + 1, N_atoms)
+
+            rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
+            rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
+
+            if norm(rᵢⱼ) < r_cut
+
+                #2nd order part
+                ij_block = H2_exec(ustrip.(rᵢⱼ))
+
+                IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= ij_block
+                IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= ij_block
+
+                #3rd order part(s)
+                for k in range(j + 1, N_atoms)
+                    rᵢₖ = sys.atoms.position[i] .- sys.atoms.position[k]
+                    nearest_mirror!(rᵢₖ, sys.box_sizes_SC)
+                    if norm(rᵢₖ) < r_cut
+                        rⱼₖ = sys.atoms.position[j] .- sys.atoms.position[k]
+                        nearest_mirror!(rⱼₖ, sys.box_sizes_SC)
+
+                        ij_block = H3_exec(ustrip.(rᵢⱼ))
+                        IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= ij_block
+                        IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= ij_block
+
+                        ik_block = H3_exec(ustrip.(rᵢₖ))
+                        IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= ik_block
+                        IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= ik_block
+
+                        jk_block = H3_exec(ustrip.(rⱼₖ))
+                        IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= jk_block
+                        IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= jk_block
+                    end
+                end
+            end
         end
     end
 
@@ -57,7 +129,7 @@ function third_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) w
         for j in range(i + 1, N_atoms)
 
             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
-            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
+            rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
 
 
             iij_block = TO_exec(ustrip.(rᵢⱼ))
@@ -77,7 +149,7 @@ function third_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) w
 
 
             rᵢⱼ = sys.atoms.position[j] .- sys.atoms.position[i]
-            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
+            rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
 
             ijj_block = TO_exec(ustrip.(rᵢⱼ))
 
@@ -122,7 +194,7 @@ function fourth_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) 
         for j in range(i + 1, N_atoms)
 
             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
-            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
+            rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
 
 
             iiij_block = FO_exec(ustrip.(rᵢⱼ))
@@ -148,7 +220,7 @@ function fourth_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) 
 
 
             rᵢⱼ = sys.atoms.position[j] .- sys.atoms.position[i]
-            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
+            rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
 
             ijjj_block = FO_exec(ustrip.(rᵢⱼ))
 

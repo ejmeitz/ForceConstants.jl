@@ -1,93 +1,103 @@
-#As one way, we assume that 
-# lambda_ijk is equal to lambda_ik and eps_ijk is 
-# equal to sqrt(lambda_ij*eps_ij*lambda_ik*eps_ik)/lambda_ik, 
-# and all other parameters in the ijk line are for ik.
+export StillingerWeberSilicon
 
-#https://www.afs.enea.it/software/lammps/doc17/html/pair_sw.html
-
-struct SW_Params
-    ϵ#ep has energy units
-    σ #simga has length units
-    a #cutoff = a*sigma
-    λ
-    γ
-    cosθ₀
-    A
-    B
-    p
-    q
-    r_cut
+struct SW_Params{E,S}
+    ϵ::E #ep has energy units
+    σ::S #simga has length units
+    a::Float64 #cutoff = a*sigma
+    λ::Float64
+    γ::Float64
+    cosθ₀::Float64
+    A::Float64
+    B::Float64
+    p::Float64
+    q::Float64
 end
 
 function SW_Params(ϵ, σ, a, λ, γ, cosθ₀, A, B , p, q)
-    return SW_params(ϵ, σ, a, λ, γ, cosθ₀, A, B , p, q, a*σ)
+    return SW_Params{typeof(ϵ), typeof(σ)}(ϵ, σ, a, λ, γ, cosθ₀,
+                                             A, B , p, q)
 end
 
-struct StillingerWeberSilicon{L,E,R} <: ThreeBodyPotential
+struct StillingerWeberSilicon{R,L,E} <: ThreeBodyPotential
+    r_cut::R
     length_unit::L
     energy_unit::E
-    params::SW_Params #Dict{NTuple{3,Symbol},SW_Params}
-end
-
-function StillingerWeberSilicon(params::SW_Params)
-    @assert unit(params.σ_ij) == unit(params.σ_ik) "Mismatched length units in SW"
-    @assert unit(params.ϵ_ij) == unit(params.ϵ_ijk) "Mismatched energy units in SW"
-    # @assert length(params ∈ [1,8,27]) "Invalid number of parameters"
-    # @assert validate_permutations(params) "Missing element permutation"
-
-    #Pull out units, assume they use consistent units
-    len_unit = unit(first(params).second.σ_ij)
-    eng_unit = unit(first(params).second.ϵ_ij)
-
-    #Pull out values where last 2 are same (used for pair evals per LAMMPS docs)
-    # two_body_inters = {k => v for (k,v) in params if all(k[2] == k[3])}
-
-    return SW{typeof(len_unit),typeof(eng_unit),length(params)}(len_unit, eng_unit, params)
-end
-
-function validate_permutations(params)
-    if length(params) == 1
-        elements = keys(params[1])
-        return all(elements[1] .== elements) #all must be the same
-    elseif length(params) == 8
-        # Check only 2 unique elements
-        # Check there is all possible combos
-        return only_2_elements && all_perms_present
-    elseif length(params) == 27
-        #Check for 3 unique elements
-        #Check there is all possible combos
-        return only_3_elements && all_perms_present
-    else
-        throw(error("Invalid number of params"))
-    end
+    params::SW_Params
 end
 
 
-function potential(pot::StillingerWeberSilicon, rᵢ, rⱼ, rₖ, e1, e2, e3)
-    params = pot.params[(e1,e2,e3)]
-    rᵢⱼ = rᵢ .- rⱼ
-    rᵢₖ = rᵢ .- rₖ
-    θᵢⱼₖ = dot(rᵢⱼ, rᵢₖ) / (norm(rᵢⱼ) * norm(rᵢₖ))
+function StillingerWeberSilicon()
+    #From LAMMPS Si.sw file
+    sws_params = SW_Params(2.1683u"eV", 2.0951u"Å", 1.80, 21.0, 1.20,
+         -1/3, 7.049556277,  0.6022245584,  4.0,  0.0)
+    
+    r_cut = sws_params.a*sws_params.σ
+    length_unit = unit(sws_params.σ)
+    energy_unit = unit(sws_params.ϵ)
 
-    λᵢⱼₖ = pot.ϵ
-    # sqrt(lambda_ij*eps_ij*lambda_ik*eps_ik)/lambda_ik
-    return Φ₂(params.A, params.B, params.ϵ, params.p, params.q, params.a, rᵢⱼ) +
-                  Φ₃(, rᵢⱼ, rᵢₖ, θᵢⱼₖ)
+    return StillingerWeberSilicon{typeof(r_cut),typeof(length_unit),typeof(energy_unit)}(
+                r_cut, length_unit, energy_unit, sws_params)
+end
+
+
+function pair_potential(pot::StillingerWeberSilicon, rᵢⱼ::Vector)   
+    return Φ₂(pot.params.A, pot.params.B, pot.params.ϵ, pot.params.σ, pot.params.p, pot.params.q, pot.params.a, norm(rᵢⱼ))
+end
+
+function pair_potential_nounits(pot::StillingerWeberSilicon, rᵢⱼ::Vector)   
+    return Φ₂(pot.params.A, pot.params.B, ustrip(pot.params.ϵ), ustrip(pot.params.σ),
+                 pot.params.p, pot.params.q, pot.params.a, norm(rᵢⱼ))
+end
+
+# function three_body_potential(pot::StillingerWeberSilicon, rᵢⱼ, rᵢₖ, rⱼᵢ, rⱼₖ, rₖᵢ, rₖⱼ)
+#     dist_ij = norm(rᵢⱼ); dist_ik = norm(rᵢₖ)
+#     dist_ji = norm(rⱼᵢ); dist_jk = norm(rⱼₖ)
+#     dist_ki = norm(rₖᵢ); dist_kj = norm(rₖⱼ)
+#     cosθᵢⱼₖ = dot(rᵢⱼ, rᵢₖ) / (dist_ij * dist_ik)
+#     cosθⱼᵢₖ = dot(rⱼᵢ, rⱼₖ) / (dist_ji * dist_jk)
+#     cosθₖᵢⱼ = dot(rₖᵢ, rₖⱼ) / (dist_ki * dist_kj)
+#     h1 = Φ₃(pot.params.γ, pot.params.ϵ, cosθᵢⱼₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+#                  pot.params.σ, pot.params.σ, pot.params.a, pot.params.a, dist_ij, dist_ik)
+#     h2 = Φ₃(pot.params.γ, pot.params.ϵ, cosθⱼᵢₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+#         pot.params.σ, pot.params.σ, pot.params.a, pot.params.a, dist_ji, dist_jk)
+#     h3 = Φ₃(pot.params.γ, pot.params.ϵ, cosθₖᵢⱼ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+#         pot.params.σ, pot.params.σ, pot.params.a, pot.params.a, dist_ki, dist_kj)
+#     # println("dist_ij $(dist_ij) dist_ik $(dist_ik) dist_ji $(dist_ji) dist_jk $(dist_jk) dist_ki $(dist_ki) dist_kj $(dist_kj)")
+#     # println("h1: $(ustrip(h1)) h2 $(ustrip(h2)) h3 $(ustrip(h3))")
+#     # println("cos1: $(ustrip(cosθᵢⱼₖ)) cos2 $(ustrip(cosθⱼᵢₖ)) cos3 $(ustrip(cosθₖᵢⱼ))")
+#     return h1 + h2 + h3
+# end
+function three_body_potential(pot::StillingerWeberSilicon, rᵢⱼ, rᵢₖ)
+    dist_ij = norm(rᵢⱼ); dist_ik = norm(rᵢₖ)
+  
+    cosθᵢⱼₖ = dot(rᵢⱼ, rᵢₖ) / (dist_ij * dist_ik)
+
+    return Φ₃(pot.params.γ, pot.params.ϵ, cosθᵢⱼₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+                 pot.params.σ, pot.params.σ, pot.params.a, pot.params.a, dist_ij, dist_ik)
 
 end
 
-function Φ₂(A, B, ϵ, p, q, a, rᵢⱼ)
+function three_body_potential_nounits(pot::StillingerWeberSilicon, rᵢⱼ, rᵢₖ, rⱼᵢ, rⱼₖ, rₖᵢ, rₖⱼ)
+    dist_ij = norm(rᵢⱼ); dist_ik = norm(rᵢₖ)
+    dist_ji = norm(rⱼᵢ); dist_jk = norm(rⱼₖ)
+    dist_ki = norm(rₖᵢ); dist_kj = norm(rₖⱼ)
+    cosθᵢⱼₖ = dot(rᵢⱼ, rᵢₖ) / (dist_ij * dist_ik)
+    cosθⱼᵢₖ = dot(rⱼᵢ, rⱼₖ) / (dist_ji * dist_jk)
+    cosθₖᵢⱼ = dot(rₖᵢ, rₖⱼ) / (dist_ki * dist_kj)
+    h1 = Φ₃(pot.params.γ, ustrip(pot.params.ϵ), cosθᵢⱼₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+                 ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, dist_ij, dist_ik)
+    h2 = Φ₃(pot.params.γ, ustrip(pot.params.ϵ), cosθⱼᵢₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+        ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, dist_ji, dist_jk)
+    h3 = Φ₃(pot.params.γ, ustrip(pot.params.ϵ), cosθₖᵢⱼ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+        ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, dist_ki, dist_kj)
+    return h1 + h2 + h3
+end
+ 
+function Φ₂(A, B, ϵ, σ, p, q, a, rᵢⱼ)
     return A*ϵ*(B*((σ/rᵢⱼ)^p) - ((σ/rᵢⱼ)^q)) * exp(σ/(rᵢⱼ-(a*σ)))
 end
 
-function Φ₃(λᵢⱼₖ, ϵᵢⱼₖ, cosθ₀, γᵢⱼ, γᵢₖ, σᵢⱼ, σᵢₖ, aᵢⱼ, aᵢₖ, rᵢⱼ, rᵢₖ, θᵢⱼₖ)
-    return λᵢⱼₖ*ϵᵢⱼₖ*((cos(θᵢⱼₖ) - cosθ₀)^2)*exp((γᵢⱼ*σᵢⱼ)/(rᵢⱼ -(aᵢⱼ*σᵢⱼ)))*exp((γᵢₖ*σᵢₖ)/(rᵢₖ-(aᵢₖ*σᵢₖ)))
-end
-
-function pair_force()
-
-end
-
-function three_body_force()
-
-end
+function Φ₃(λᵢⱼₖ, ϵᵢⱼₖ, cosθᵢⱼₖ, cosθ₀, γᵢⱼ, γᵢₖ, σᵢⱼ, σᵢₖ, aᵢⱼ, aᵢₖ, rᵢⱼ, rᵢₖ)
+    # println("term1: $(ustrip(λᵢⱼₖ*ϵᵢⱼₖ*((cosθᵢⱼₖ - cosθ₀)^2))) term2 $(ustrip(exp((γᵢⱼ*σᵢⱼ)/(rᵢⱼ -(aᵢⱼ*σᵢⱼ))))) term3 $(ustrip(exp((γᵢₖ*σᵢₖ)/(rᵢₖ-(aᵢₖ*σᵢₖ)))))")
+    return λᵢⱼₖ*ϵᵢⱼₖ*((cosθᵢⱼₖ - cosθ₀)^2)*exp((γᵢⱼ*σᵢⱼ)/(rᵢⱼ -(aᵢⱼ*σᵢⱼ)))*exp((γᵢₖ*σᵢₖ)/(rᵢₖ-(aᵢₖ*σᵢₖ)))
+end 

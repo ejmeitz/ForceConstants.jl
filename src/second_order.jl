@@ -37,7 +37,7 @@ function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) wher
         for j in range(i+1,N_atoms)
 
             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
-            rᵢⱼ = nearest_mirror(rᵢⱼ, sys.box_sizes_SC)
+            rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
             dist = norm(rᵢⱼ)
 
             if dist < pot.r_cut
@@ -69,11 +69,9 @@ function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) wher
 
     IFC2 = apply_tols!(IFC2,tol)
 
-    return DenseForceConstants(IFC2, unit(pot.ϵ / pot.σ^2), tol)
+    return DenseForceConstants(IFC2, unit(pot.energy_unit / pot.length_unit^2), tol)
 
 end
-
-### Utility Functions ###
 
 function ϕ₂(pot::PairPotential, r_norm, r_jk_j′k′, α, β)
     rᵢⱼ = r_jk_j′k′
@@ -83,6 +81,52 @@ function ϕ₂(pot::PairPotential, r_norm, r_jk_j′k′, α, β)
     return (α == β) ? ((rᵢⱼ[α]*rᵢⱼ[β]/(r_norm^2))*(Φ′′ - (Φ′/r_norm))) + (Φ′/r_norm) :
                     ((rᵢⱼ[α]*rᵢⱼ[β]/(r_norm^2))*(Φ′′ - (Φ′/r_norm)))
 end
+
+"""
+Calculates the second order force constant matrix for a three-body potential. This method
+uses automatic differentiation to calculate the force constants and should be checked with
+the provided `check_ifc` or manually using the finite difference methods in `finite_diff_ifc.jl`.
+"""
+function second_order_IFC(sys::SuperCellSystem{D}, pot::ThreeBodyPotential, tol) where D
+    vars = make_variables(:r, D)
+    r_norm = sqrt(sum(x -> x^2, vars))
+    pot_symbolic = potential_nounits(pot, r_norm)
+    H_symbolic = hessian(pot_symbolic, vars)
+    H_exec = make_function(H_symbolic, vars)
+
+    N_atoms = n_atoms(sys)
+    IFC2 = zeros(D*N_atoms,D*N_atoms)
+
+    Threads.@threads for i in range(1, N_atoms)
+        for j in range(i + 1, N_atoms)
+
+            rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
+            rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
+
+            ij_block = H_exec(ustrip.(rᵢⱼ))
+
+            IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .= ij_block
+            IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .= ij_block
+
+        end
+    end
+
+    #Acoustic Sum Rule
+    Threads.@threads for i in range(1, N_atoms) # index of block matrix
+        for α in range(1,D)
+            for β in range(1,D)
+                ii = D*(i-1) + α
+                jj = D*(i-1) + β # i == j because we're on diagonal
+                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
+            end
+        end
+    end
+
+    IFC2 = apply_tols!(IFC2,tol)
+
+    return SecondOrderMatrix(IFC2, unit(pot.energy_unit / pot.length_unit^2), tol)
+end
+
 
 ### Get Modes ###
 """

@@ -13,13 +13,11 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
    @assert all(atom_idxs .<= N_atoms) && all(atom_idxs .>= 1) "Atom indexes out of range, must be in 1:$(N_atoms)"
    @assert all(cartesian_idxs .<= 3) && all(cartesian_idxs .>= 1) "Cartesian indices must be 1, 2, or 3"
 
-   energy_unit = zero(potential(pot,1u"Å")) 
-
    posns = positions(sys_eq)
 
    if atom_idxs[1] != atom_idxs[2]
 
-        energies = zeros(4)*energy_unit
+        energies = zeros(4)*pot.energy_unit
         combos = [[h,h],[-h,-h],[h,-h],[-h,h]]
 
         for (c,combo) in enumerate(combos)
@@ -27,7 +25,7 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
             posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
             posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
 
-            energies[c] = energy_loop(pot, posns, energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
+            energies[c] = energy_loop(pot, posns, pot.energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
 
             #Un-modify
             posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
@@ -36,13 +34,13 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
 
         return (1/(4*h^2))*(energies[1] + energies[2] - energies[3] - energies[4])
     else
-        energies = zeros(3)*energy_unit
+        energies = zeros(3)*pot.energy_unit
         combos = [h,zero(pot.σ),-h]
 
         for (c,combo) in enumerate(combos)
             posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
 
-            energies[c] = energy_loop(pot, posns, energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
+            energies[c] = energy_loop(pot, posns, pot.energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
 
             posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
         end
@@ -66,7 +64,7 @@ function third_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential,
    z = zero(pot.σ)
    combos = [[z,h,-h],[z,h,h],[z,-h,h],[z,-h,-h]]
    
-   force_unit = zero(force(pot,1u"Å")) 
+   force_unit = unit(force(pot,r_cut)) 
    forces = zeros(4)*force_unit
 
    posns = positions(sys_eq)
@@ -99,7 +97,7 @@ function fourth_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
 
    combos = [[h,h,h],[h,h,-h],[h,-h,h],[h,-h,-h],[-h,h,h],[-h,h,-h],[-h,-h,h],[-h,-h,-h]]
    
-   force_unit = zero(force(pot,1u"Å")) 
+   force_unit = unit(force(pot,r_cut)) 
    forces = zeros(8)*force_unit
 
    posns = positions(sys_eq)

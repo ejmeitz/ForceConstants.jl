@@ -127,7 +127,7 @@ function fourth_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
     end
 
     #Give proper units
-    χ_unit = unit(pot.ϵ / pot.σ^4)
+    χ_unit = unit(pot.energy_unit / pot.length_unit^4)
 
     return SparseForceConstants(χ, χ_unit, tol)
 end

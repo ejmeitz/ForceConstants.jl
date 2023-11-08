@@ -79,6 +79,20 @@ K3 = mcc3(CuArray{Float32}(ifc3_mw.values), CuArray{Float32}(phi), 256, 1e-12)
     
 end
 
+@test "Third Order" begin
+
+    # Analytical vs Sparse vs FD vs AD (Pair)
+    # Sparse vs FD vs AD (Three-Body)
+
+end
+
+@test "Fourth Order" begin
+    
+    # Analytical vs Sparse vs FD vs AD (Pair)
+    # Sparse vs FD vs AD (Three-Body)
+
+end
+
 
 # ω_THz = get_dispersion_points(sys_uc, pot; directions = ([1.0, 0.0, 0.0],), tol = 1e-12);
 
