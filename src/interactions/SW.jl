@@ -67,8 +67,7 @@ end
 #     # println("cos1: $(ustrip(cosθᵢⱼₖ)) cos2 $(ustrip(cosθⱼᵢₖ)) cos3 $(ustrip(cosθₖᵢⱼ))")
 #     return h1 + h2 + h3
 # end
-function three_body_potential(pot::StillingerWeberSilicon, rᵢⱼ, rᵢₖ)
-    dist_ij = norm(rᵢⱼ); dist_ik = norm(rᵢₖ)
+function three_body_potential(pot::StillingerWeberSilicon, rᵢⱼ, rᵢₖ, dist_ij, dist_ik)
   
     cosθᵢⱼₖ = dot(rᵢⱼ, rᵢₖ) / (dist_ij * dist_ik)
 
@@ -77,21 +76,21 @@ function three_body_potential(pot::StillingerWeberSilicon, rᵢⱼ, rᵢₖ)
 
 end
 
-function three_body_potential_nounits(pot::StillingerWeberSilicon, rᵢⱼ, rᵢₖ, rⱼᵢ, rⱼₖ, rₖᵢ, rₖⱼ)
-    dist_ij = norm(rᵢⱼ); dist_ik = norm(rᵢₖ)
-    dist_ji = norm(rⱼᵢ); dist_jk = norm(rⱼₖ)
-    dist_ki = norm(rₖᵢ); dist_kj = norm(rₖⱼ)
-    cosθᵢⱼₖ = dot(rᵢⱼ, rᵢₖ) / (dist_ij * dist_ik)
-    cosθⱼᵢₖ = dot(rⱼᵢ, rⱼₖ) / (dist_ji * dist_jk)
-    cosθₖᵢⱼ = dot(rₖᵢ, rₖⱼ) / (dist_ki * dist_kj)
-    h1 = Φ₃(pot.params.γ, ustrip(pot.params.ϵ), cosθᵢⱼₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
-                 ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, dist_ij, dist_ik)
-    h2 = Φ₃(pot.params.γ, ustrip(pot.params.ϵ), cosθⱼᵢₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
-        ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, dist_ji, dist_jk)
-    h3 = Φ₃(pot.params.γ, ustrip(pot.params.ϵ), cosθₖᵢⱼ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
-        ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, dist_ki, dist_kj)
-    return h1 + h2 + h3
-end
+# function three_body_potential_nounits(pot::StillingerWeberSilicon, rᵢⱼ, rᵢₖ, rⱼᵢ, rⱼₖ, rₖᵢ, rₖⱼ)
+#     dist_ij = norm(rᵢⱼ); dist_ik = norm(rᵢₖ)
+#     dist_ji = norm(rⱼᵢ); dist_jk = norm(rⱼₖ)
+#     dist_ki = norm(rₖᵢ); dist_kj = norm(rₖⱼ)
+#     cosθᵢⱼₖ = dot(rᵢⱼ, rᵢₖ) / (dist_ij * dist_ik)
+#     cosθⱼᵢₖ = dot(rⱼᵢ, rⱼₖ) / (dist_ji * dist_jk)
+#     cosθₖᵢⱼ = dot(rₖᵢ, rₖⱼ) / (dist_ki * dist_kj)
+#     h1 = Φ₃(pot.params.γ, ustrip(pot.params.ϵ), cosθᵢⱼₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+#                  ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, dist_ij, dist_ik)
+#     h2 = Φ₃(pot.params.γ, ustrip(pot.params.ϵ), cosθⱼᵢₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+#         ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, dist_ji, dist_jk)
+#     h3 = Φ₃(pot.params.γ, ustrip(pot.params.ϵ), cosθₖᵢⱼ, pot.params.cosθ₀, pot.params.γ, pot.params.γ,
+#         ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, dist_ki, dist_kj)
+#     return h1 + h2 + h3
+# end
  
 function Φ₂(A, B, ϵ, σ, p, q, a, rᵢⱼ)
     return A*ϵ*(B*((σ/rᵢⱼ)^p) - ((σ/rᵢⱼ)^q)) * exp(σ/(rᵢⱼ-(a*σ)))

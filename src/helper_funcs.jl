@@ -66,9 +66,9 @@ function energy_loop(pot::StillingerWeberSilicon, posns, eng_unit, r_cut, box_si
                 nearest_mirror!(rᵢₖ, box_sizes)
                 dist_ik = norm(rᵢₖ)    
                 
-                # if dist_ij < r_cut && dist_ik < r_cut 
-                U_total += three_body_potential(pot, rᵢⱼ, rᵢₖ)
-                # end
+                if dist_ij < r_cut && dist_ik < r_cut 
+                    U_total += three_body_potential(pot, rᵢⱼ, rᵢₖ, dist_ij, dist_ik)
+                end
             end
         end
     end
