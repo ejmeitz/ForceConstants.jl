@@ -44,16 +44,18 @@ end
 function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon, tol; r_cut = pot.r_cut) where D
     vars = make_variables(:r, D)
     r_norm = sqrt(sum(x -> x^2, vars))
+    println("at start")
     #2nd order part 
     pot2_symbolic = pair_potential_nounits(pot, r_norm)
     H2_symbolic = hessian(pot2_symbolic, vars)
     H2_exec = make_function(H2_symbolic, vars)
 
+    println("here")
     #3rd order part(s)
     pot3_symbolic = threebody_potential_nounits(pot, r_norm)
     H3_symbolic = hessian(pot3_symbolic, vars)
     H3_exec = make_function(H3_symbolic, vars)
-
+    println("here3")
     N_atoms = n_atoms(sys)
     IFC2 = zeros(D*N_atoms,D*N_atoms)
 

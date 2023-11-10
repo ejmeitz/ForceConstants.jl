@@ -26,9 +26,9 @@ function apply_tols!(arr, tol)
     return arr
 end
 
-function energy_loop(pot::PairPotential, posns, eng_unit, r_cut, box_sizes, N_atoms)
+function energy_loop(pot::PairPotential, posns, r_cut, box_sizes, N_atoms)
 
-    U_total = 0.0*eng_unit
+    U_total = 0.0*pot.energy_unit
 
     for i in range(1,N_atoms)
         for j in range(i+1, N_atoms)             
@@ -45,78 +45,49 @@ function energy_loop(pot::PairPotential, posns, eng_unit, r_cut, box_sizes, N_at
 
 end
 
-function energy_loop(pot::StillingerWeberSilicon, posns, eng_unit, r_cut, box_sizes, N_atoms)
+#Expects positions as Vector{Vector}
+function energy_loop(pot::StillingerWeberSilicon, posns, box_sizes, N_atoms)
 
-    U_total = 0.0*eng_unit
+    U_total = 0.0*pot.energy_unit
 
+    rᵢⱼ = similar(posns[1])
+    rᵢₖ = similar(posns[1])
+    r_cut_sq = pot.r_cut * pot.r_cut #avoid doing sqrts
     for i in range(1,N_atoms)
-        for j in range(1, N_atoms)
+        for j in range(1,N_atoms)
 
-            rᵢⱼ = posns[i] .- posns[j]
-            nearest_mirror!(rᵢⱼ, box_sizes)
-            dist_ij = norm(rᵢⱼ) 
+            if i != j
+                rᵢⱼ .= posns[i] .- posns[j]
+                nearest_mirror!(rᵢⱼ, box_sizes)
+                dist_ij_sq = sum(x -> x^2, rᵢⱼ)
 
-            if i < j && dist_ij < r_cut
-                U_total += pair_potential(pot, rᵢⱼ)
-            end
-            
-            for k in range(j+1, N_atoms)  
-                # i central
-                rᵢₖ = posns[i] .- posns[k]
-                nearest_mirror!(rᵢₖ, box_sizes)
-                dist_ik = norm(rᵢₖ)    
-                
-                if dist_ij < r_cut && dist_ik < r_cut 
-                    U_total += three_body_potential(pot, rᵢⱼ, rᵢₖ, dist_ij, dist_ik)
+                if dist_ij_sq < r_cut_sq
+
+                    if i < j
+                        U_total += pair_potential(pot, sqrt(dist_ij_sq))
+                    end
+
+                    for k in range(j+1, N_atoms)
+                        if i != k
+                            rᵢₖ .= posns[i] .- posns[k]
+                            nearest_mirror!(rᵢₖ, box_sizes)
+                            dist_ik_sq = sum(x -> x^2, rᵢₖ)
+                            
+                            if dist_ik_sq < r_cut_sq
+                                U_total += three_body_potential(pot, rᵢⱼ, rᵢₖ, sqrt(dist_ij_sq), sqrt(dist_ik_sq))
+                            end
+                        end
+                    end
                 end
             end
+
         end
     end
     return U_total
 end
 
-# function energy_loop(pot::StillingerWeberSilicon, posns, eng_unit, r_cut, box_sizes, N_atoms)
 
-#     U_total = 0.0*eng_unit
 
-#     for i in range(1,N_atoms)
-#         for j in range(i+1, N_atoms)
-#             rᵢⱼ = posns[i] .- posns[j]
-#             nearest_mirror!(rᵢⱼ, box_sizes)
-#             dist_ij = norm(rᵢⱼ) 
-#             if dist_ij < r_cut
-#                 U_total += pair_potential(pot, rᵢⱼ)
-            
-#                 for k in range(j+1, N_atoms)
-
-#                     #i as central atom
-#                     rᵢₖ = posns[i] .- posns[k]
-#                     nearest_mirror!(rᵢₖ, box_sizes)
-#                     dist_ik = norm(rᵢₖ)    
-
-#                     if dist_ik < r_cut 
-#                         U_total += three_body_potential(pot, rᵢⱼ, rᵢₖ)
-#                     end
-
-#                     #j,k as central atom
-#                     rⱼᵢ = -rᵢⱼ
-#                     rⱼₖ = rᵢₖ .- rᵢⱼ #rᵢⱼ .- rᵢₖ
-#                     rₖᵢ = -rᵢₖ
-#                     rₖⱼ = -rⱼₖ
-#                     dist_jk = norm(rⱼₖ)
-#                     if dist_jk < r_cut
-#                         U_total += three_body_potential(pot, rⱼᵢ, rⱼₖ) #j central atom
-#                         if dist_ik < r_cut
-#                             U_total += three_body_potential(pot, rₖᵢ, rₖⱼ) #k central atom 
-#                         end
-#                     end
-                    
-#                 end
-#             end
-#         end
-#     end
-#     return U_total
-# end
 
 # Calculates force on atom j in β direction
 function force_loop_j(pot::PairPotential, posns, force_unit, r_cut, box_sizes, N_atoms, j, β)

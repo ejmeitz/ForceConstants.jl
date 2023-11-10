@@ -2,7 +2,7 @@ export mcc3, mcc3_custom_kernel
 
 
 """
-Converts third order forces constants, `Ψ` into third order modal coupling constants (MCC).
+Converts mass weighted third order forces constants, `Ψ` into third order modal coupling constants (MCC).
 Does not divide MCC calculation into smaller chunks. This might exhaust GPU memory.
 """
 function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, tol::Float64)
@@ -19,7 +19,7 @@ function mcc3(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, tol::Float64)
 end
 
 """
-Converts third order forces constants, `Ψ` into third order modal coupling constants (MCC). The
+Converts mass weighted third order forces constants, `Ψ` into third order modal coupling constants (MCC). The
 parameter `block_size` specifies problem size when calculating the MCC. For example, if 
 `block_size` is 100, the block MCC will be calculated in 100x100x100 blocks to save GPU memory.
 The `phi` matrix will be automatically truncated to adjust for this.

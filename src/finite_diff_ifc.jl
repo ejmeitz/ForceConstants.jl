@@ -25,7 +25,7 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
             posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
             posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
 
-            energies[c] = energy_loop(pot, posns, pot.energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
+            energies[c] = energy_loop(pot, posns, r_cut, sys_eq.box_sizes_SC, N_atoms)
 
             #Un-modify
             posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
@@ -40,7 +40,7 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
         for (c,combo) in enumerate(combos)
             posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
 
-            energies[c] = energy_loop(pot, posns, pot.energy_unit, r_cut, sys_eq.box_sizes_SC, N_atoms)
+            energies[c] = energy_loop(pot, posns, r_cut, sys_eq.box_sizes_SC, N_atoms)
 
             posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
         end
