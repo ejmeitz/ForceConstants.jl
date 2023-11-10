@@ -1,5 +1,5 @@
 export save_second_order, save_third_order,
-        parse_TDEP_second_order, parse_TDEP_second_order,
+        parse_TDEP_second_order, parse_TDEP_third_order,
         parse_ModeCode_third_order, parse_LAMMPS_dynmat, parse_LAMMPS_third_order
 
 
@@ -127,7 +127,7 @@ function parse_TDEP_second_order(ifc_path::String, N_modes, energy_units::Symbol
         throw(ArgumentError("Unsupported unit type: $(energy_units)"))
     end
 
-    return SecondOrderMatrix(Φ, units, 0.0)
+    return DenseForceConstants(Φ, units, 0.0)
 
 end
 
@@ -138,7 +138,7 @@ This function assumes that the force constants were calculated for the supercell
 the unit-cell was remapped to the supercell with remap_forceconstants. This function is
 not guranteed to work with the most recent version of TDEP.
 """
-function parse_TDEP_thrid_order(ifc_path::String, N_modes, energy_units = :REAL)
+function parse_TDEP_third_order(ifc_path::String, N_modes, energy_units = :REAL)
     Ψ = zeros(N_modes, N_modes, N_modes)
 
     open(ifc_path, "r") do f
@@ -190,7 +190,7 @@ function parse_TDEP_thrid_order(ifc_path::String, N_modes, energy_units = :REAL)
         throw(ArgumentError("Unsupported unit type: $(energy_units)"))
     end
 
-    return ThirdOrderMatrix(Ψ, units, 0.0)
+    return DenseForceConstants(Ψ, units, 0.0)
 end
 
 """
@@ -220,7 +220,7 @@ function parse_ModeCode_third_order(path::String, N_atoms::Int, unit_system::Sym
         i, α, j, β, k, γ, data = F3_file_contents[line,:]
         F3[Int((3*(i-1)) + α), Int((3*(j-1)) + β), Int((3*(k-1)) + γ)] = data*conversion_factor
     end
-    return ThirdOrderMatrix(F3, units, 0.0)
+    return DenseForceConstants(F3, units, 0.0)
 end
 
 """
@@ -253,7 +253,7 @@ function parse_LAMMPS_dynmat(path::String, N_atoms::Integer, units)
         throw(ArgumentError("Unsupported unit_system: $(unit_system)"))
     end
 
-    return SecondOrderMatrix(dynmat, units, 0.0)
+    return DenseForceConstants(dynmat, units, 0.0)
 end
 """
 Parses output from LAMMPS `third_order` command in the PHONON package
@@ -279,5 +279,5 @@ function parse_LAMMPS_third_order(path::String, N_atoms::Int, unit_system::Symbo
         throw(ArgumentError("Unsupported unit_system: $(unit_system)"))
     end
 
-    return ThirdOrderMatrix(F3, units, 0.0)
+    return DenseForceConstants(F3, units, 0.0)
 end
