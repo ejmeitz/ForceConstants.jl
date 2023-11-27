@@ -35,6 +35,10 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) 
         end
     end
 
+    #Taking deriv of r_ij gives you a negative sign on all terms
+    # dU/dr_i_a = - dU/dr_ij_a
+    IFC2 = -1 .* IFC2 
+
     IFC2 = apply_tols!(IFC2,tol)
 
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
