@@ -1,28 +1,29 @@
-export LJ
+export LJ, energy_unit, length_unit
 
 #################
 # Lennard Jones #
 #################
-struct LJ{S,E,L,EU,R,U,F} <: PairPotential
+struct LJ{S,E,R,U,F} <: PairPotential
     σ::S
     ϵ::E
-    length_unit::L
-    enegy_unit::EU
     r_cut::R
     U_cut::U
     F_cut::F
 end
 
 function LJ(σ, ϵ, r_cut)
-    energy_unit = unit(ϵ)
-    length_unit = unit(σ)
     #Values for U_cut and F_cut are unknown at this point
-    temp = LJ{typeof(σ),typeof(ϵ),typeof(length_unit),typeof(energy_unit),typeof(r_cut),Integer,Integer}(σ, ϵ, r_cut, 0, 0)
+    temp = LJ{typeof(σ),typeof(ϵ),typeof(r_cut),Integer,Integer}(
+        σ, ϵ, r_cut, 0, 0)
 
     U_cut = potential(temp, r_cut)
     F_cut = force(temp, r_cut)
-    return LJ{typeof(σ),typeof(ϵ),typeof(length_unit),typeof(energy_unit),typeof(r_cut),typeof(ϵ),typeof(F_cut)}(σ, ϵ, r_cut, U_cut, F_cut)
+    return LJ{typeof(σ),typeof(ϵ),typeof(r_cut),typeof(U_cut),typeof(F_cut)}(
+        σ, ϵ, r_cut, U_cut, F_cut)
 end
+
+energy_unit(pot::LJ) = unit(pot.ϵ)
+length_unit(pot::LJ) = unit(pot.σ)
 
 function potential(pot::LJ, r)
     k = (pot.σ/r)^6

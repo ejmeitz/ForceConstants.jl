@@ -17,7 +17,7 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
 
    if atom_idxs[1] != atom_idxs[2]
 
-        energies = zeros(4)*pot.energy_unit
+        energies = zeros(4)*energy_unit(pot)
         combos = [[h,h],[-h,-h],[h,-h],[-h,h]]
 
         for (c,combo) in enumerate(combos)
@@ -34,7 +34,7 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
 
         return (1/(4*h^2))*(energies[1] + energies[2] - energies[3] - energies[4])
     else
-        energies = zeros(3)*pot.energy_unit
+        energies = zeros(3)*energy_unit(pot)
         combos = [h,zero(pot.σ),-h]
 
         for (c,combo) in enumerate(combos)

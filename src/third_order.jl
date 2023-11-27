@@ -61,7 +61,7 @@ function third_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) where
     Ψ = apply_tols!(Ψ, tol)
 
     #Give proper units
-    Ψ_unit = unit(pot.energy_unit / pot.length_unit^3)
+    Ψ_unit = energy_unit(pot) / length_unit(pot)^3
 
     return DenseForceConstants(Ψ, Ψ_unit, tol)
     
@@ -173,7 +173,7 @@ function third_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,
 
 
     #Give proper units
-    Ψ_unit = unit(pot.ϵ / pot.σ^3)
+    Ψ_unit = energy_unit(pot) / length_unit(pot)^3
 
     return SparseForceConstants(Ψ, Ψ_unit, tol)
 
@@ -333,7 +333,7 @@ end
 #     Ψ = apply_tols!(Ψ, tol)
 
 #     #Give proper units
-#     Ψ_unit = unit(pot.energy_unit / pot.length_unit^3)
+#     Ψ_unit = energy_unit(pot) / length_unit(pot)^3
 
 #     return DenseForceConstants(Ψ, Ψ_unit, tol)
 # end

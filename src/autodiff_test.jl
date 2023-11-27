@@ -37,7 +37,7 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) 
 
     IFC2 = apply_tols!(IFC2,tol)
 
-    return SecondOrderMatrix(IFC2, unit(pot.ϵ / pot.σ^2), tol)
+    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
 
 end
 
@@ -111,7 +111,7 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilic
 
     IFC2 = apply_tols!(IFC2,tol)
 
-    return SecondOrderMatrix(IFC2, unit(pot.ϵ / pot.σ^2), tol)
+    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
 
 end
 
@@ -176,7 +176,7 @@ function third_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) w
 
     IFC3 = apply_tols!(IFC3,tol)
 
-    return ThirdOrderMatrix(IFC3, unit(pot.ϵ / pot.σ^3), tol)
+    return DenseForceConstants(IFC3, energy_unit(pot) / length_unit(pot)^3, tol)
 
 end
 

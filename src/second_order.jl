@@ -69,7 +69,7 @@ function second_order_IFC(sys::SuperCellSystem{D}, pot::PairPotential, tol) wher
 
     IFC2 = apply_tols!(IFC2,tol)
 
-    return DenseForceConstants(IFC2, unit(pot.energy_unit / pot.length_unit^2), tol)
+    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
 
 end
 
@@ -124,7 +124,7 @@ function second_order_IFC(sys::SuperCellSystem{D}, pot::ThreeBodyPotential, tol)
 
     IFC2 = apply_tols!(IFC2,tol)
 
-    return SecondOrderMatrix(IFC2, unit(pot.energy_unit / pot.length_unit^2), tol)
+    return SecondOrderMatrix(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
 end
 
 

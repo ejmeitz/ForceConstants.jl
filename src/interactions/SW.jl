@@ -18,10 +18,8 @@ function SW_Params(ϵ, σ, a, λ, γ, cosθ₀, A, B , p, q)
                                              A, B , p, q)
 end
 
-struct StillingerWeberSilicon{R,L,E,GS,LE} <: ThreeBodyPotential
+struct StillingerWeberSilicon{R,GS,LE} <: ThreeBodyPotential
     r_cut::R
-    length_unit::L
-    energy_unit::E
     params::SW_Params
     gamma_sigma::GS
     lambda_epsilon::LE
@@ -34,14 +32,15 @@ function StillingerWeberSilicon()
         -0.333333333333, 7.049556277,  0.6022245584,  4.0,  0.0)
     
     r_cut = sws_params.a*sws_params.σ
-    length_unit = unit(sws_params.σ)
-    energy_unit = unit(sws_params.ϵ)
     gamma_sigma = sws_params.σ*sws_params.γ
     lambda_epsilon = sws_params.ϵ*sws_params.λ
 
-    return StillingerWeberSilicon{typeof(r_cut),typeof(length_unit),typeof(energy_unit), typeof(gamma_sigma), typeof(lambda_epsilon)}(
-                r_cut, length_unit, energy_unit, sws_params, gamma_sigma, lambda_epsilon)
+    return StillingerWeberSilicon{typeof(r_cut), typeof(gamma_sigma), typeof(lambda_epsilon)}(
+                r_cut, sws_params, gamma_sigma, lambda_epsilon)
 end
+
+energy_unit(pot::StillingerWeberSilicon) = unit(pot.params.ϵ)
+length_unit(pot::StillingerWeberSilicon) = unit(pot.params.σ)
 
 
 function pair_potential(pot::StillingerWeberSilicon, dist_ij)   
