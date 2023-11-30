@@ -26,9 +26,9 @@ function apply_tols!(arr, tol)
     return arr
 end
 
-function energy_loop(pot::PairPotential, posns, r_cut, box_sizes, N_atoms)
+function energy_loop(pot::PairPotential, posns, box_sizes, N_atoms, r_cut)
 
-    U_total = 0.0*pot.energy_unit
+    U_total = 0.0*energy_unit(pot)
 
     for i in range(1,N_atoms)
         for j in range(i+1, N_atoms)             
@@ -46,9 +46,9 @@ function energy_loop(pot::PairPotential, posns, r_cut, box_sizes, N_atoms)
 end
 
 #Expects positions as Vector{Vector}
-function energy_loop(pot::StillingerWeberSilicon, posns, box_sizes, N_atoms)
+function energy_loop(pot::StillingerWeberSilicon, posns, box_sizes, N_atoms, r_cut)
 
-    U_total = 0.0*pot.energy_unit
+    U_total = 0.0*energy_unit(pot)
 
     rᵢⱼ = similar(posns[1])
     rᵢₖ = similar(posns[1])

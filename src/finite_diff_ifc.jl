@@ -1,10 +1,43 @@
-export check_ifc, second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff
+export check_ifc, second_order_finite_diff, second_order_finite_diff_single#, third_order_finite_diff, fourth_order_finite_diff
 
-
-function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs;
+#* this is incredibly slow
+function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::Potential;
     r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å")
 
-   h = uconvert(unit(pot.σ), h)
+    N_atoms = n_atoms(sys_eq)
+    IFC2 = zeros(3*N_atoms, 3*N_atoms)
+
+    Threads.@threads for i in range(1, N_atoms)
+        for j in range(i+1, N_atoms)
+            for α in range(1,3)
+                for β in range(1,3)
+                    ii = 3*(i-1) + α
+                    jj = 3*(j-1) + β
+                    IFC2[ii,jj] = ustrip(second_order_finite_diff_single(sys_eq, pot, [i,j], [α,β]; r_cut = r_cut, h = h))
+                end
+            end
+        end 
+    end
+
+    Threads.@threads for i in range(1, N_atoms) # index of block matrix
+        for α in range(1,3)
+            for β in range(1,3)
+                ii = 3*(i-1) + α
+                jj = 3*(i-1) + β # i == j because we're on diagonal
+                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
+            end
+        end
+    end
+
+
+    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, 0.0)
+
+end
+
+function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potential, atom_idxs, cartesian_idxs;
+    r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å")
+
+   h = uconvert(length_unit(pot), h)
    N_atoms = n_atoms(sys_eq)
 
 
@@ -25,7 +58,7 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
             posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
             posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
 
-            energies[c] = energy_loop(pot, posns, r_cut, sys_eq.box_sizes_SC, N_atoms)
+            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
 
             #Un-modify
             posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
@@ -35,12 +68,12 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
         return (1/(4*h^2))*(energies[1] + energies[2] - energies[3] - energies[4])
     else
         energies = zeros(3)*energy_unit(pot)
-        combos = [h,zero(pot.σ),-h]
+        combos = [h,0.0*length_unit(pot),-h]
 
         for (c,combo) in enumerate(combos)
             posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
 
-            energies[c] = energy_loop(pot, posns, r_cut, sys_eq.box_sizes_SC, N_atoms)
+            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
 
             posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
         end
@@ -51,10 +84,11 @@ function second_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential
 end
 
 
-function third_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs;
+
+function third_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs;
     r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å")
 
-   h = uconvert(unit(pot.σ), h)
+   h = uconvert(length_unit(pot), h)
 
    @assert length(atom_idxs) == 3
    @assert length(cartesian_idxs) == 3
@@ -84,10 +118,10 @@ function third_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential,
 end
 
 #https://arxiv.org/pdf/2104.04895.pdf  Eqn 9
-function fourth_order_finite_diff(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs;
+function fourth_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs;
     r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å")
 
-   h = uconvert(unit(pot.σ), h)
+   h = uconvert(length_unit(pot), h)
 
    @assert length(atom_idxs) == 4
    @assert length(cartesian_idxs) == 4
@@ -150,7 +184,7 @@ function check_ifc(sys::SuperCellSystem{D}, ifc::DenseForceConstants{O}, pot::Pa
     ri = rand(1:N_atoms, (n_points,O)) #random atom indexes
     rci = rand(1:D, (n_points, O)) #random cartesian indexes
 
-    finite_diff_funcs = [second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff]
+    finite_diff_funcs = [second_order_finite_diff_single, third_order_finite_diff_single, fourth_order_finite_diff_single]
     finite_diff_func = finite_diff_funcs[O-1]
 
     idxs = (ri_row, rci_row) -> [D*(ri_row[o] - 1) + rci_row[o] for o in 1:O]
@@ -173,7 +207,7 @@ function check_ifc(sys::SuperCellSystem{D}, ifc::SparseForceConstants{O}, pot::P
 
     random_idxs = rand(1:length(ifc), (n_points,)) 
 
-    finite_diff_funcs = [second_order_finite_diff, third_order_finite_diff, fourth_order_finite_diff]
+    finite_diff_funcs = [second_order_finite_diff_single, third_order_finite_diff_single, fourth_order_finite_diff_single]
     finite_diff_func = finite_diff_funcs[O-1]
 
     ifc_fd = zeros(n_points)*ifc.units

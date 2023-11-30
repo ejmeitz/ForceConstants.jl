@@ -57,7 +57,7 @@ function three_body_potential(pot::StillingerWeberSilicon, rᵢⱼ, rᵢₖ, dis
     
     cosθᵢⱼₖ = dot(rᵢⱼ, rᵢₖ) / (dist_ij * dist_ik)
 
-    return Φ₃_si(pot, cosθᵢⱼₖ, pot.r_cut, dist_ij, dist_ik)
+    return Φ₃_si(pot.lambda_epsilon, pot. gamma_sigma, pot.params.cosθ₀, cosθᵢⱼₖ, pot.r_cut, dist_ij, dist_ik)
 
 end
 
@@ -65,9 +65,7 @@ function three_body_potential_nounits(pot::StillingerWeberSilicon, rᵢⱼ, rᵢ
     
     cosθᵢⱼₖ = dot(rᵢⱼ, rᵢₖ) / (dist_ij * dist_ik)
 
-    return Φ₃(pot.params.λ, ustrip(pot.params.ϵ), cosθᵢⱼₖ, pot.params.cosθ₀, pot.params.γ, pot.params.γ, 
-        ustrip(pot.params.σ), ustrip(pot.params.σ), pot.params.a, pot.params.a, rᵢⱼ, rᵢₖ)
-
+    return Φ₃_si(ustrip(pot.lambda_epsilon), ustrip(pot.gamma_sigma), pot.params.cosθ₀, cosθᵢⱼₖ, ustrip(pot.r_cut), dist_ij, dist_ik)
 end
 
 
@@ -76,10 +74,12 @@ function Φ₂(A, B, ϵ, σ, p, q, a, rᵢⱼ)
     return A*ϵ*(B*((σ/rᵢⱼ)^p) - ((σ/rᵢⱼ)^q)) * exp(σ/(rᵢⱼ-(a*σ)))
 end
 
-function Φ₃(λᵢⱼₖ, ϵᵢⱼₖ, cosθᵢⱼₖ, cosθ₀, γᵢⱼ, γᵢₖ, σᵢⱼ, σᵢₖ, aᵢⱼ, aᵢₖ, rᵢⱼ, rᵢₖ)
-    return λᵢⱼₖ*ϵᵢⱼₖ*((cosθᵢⱼₖ - cosθ₀)^2)*exp((γᵢⱼ*σᵢⱼ)/(rᵢⱼ-(aᵢⱼ*σᵢⱼ)))*exp((γᵢₖ*σᵢₖ)/(rᵢₖ-(aᵢₖ*σᵢₖ)))
+#Some simplifications are possible when using silicon params
+function Φ₃_si(lambda_epsilon, gamma_sigma, cosθ₀, cosθᵢⱼₖ, r_cut, rᵢⱼ, rᵢₖ)
+    return lambda_epsilon*((cosθᵢⱼₖ - cosθ₀)^2)*exp(gamma_sigma/(rᵢⱼ-r_cut))*exp(gamma_sigma/(rᵢₖ-r_cut))
 end 
 
-function Φ₃_si(pot, cosθᵢⱼₖ, r_cut, rᵢⱼ, rᵢₖ)
-    return pot.lambda_epsilon*((cosθᵢⱼₖ - pot.params.cosθ₀)^2)*exp(pot.gamma_sigma/(rᵢⱼ-r_cut))*exp(pot.gamma_sigma/(rᵢₖ-r_cut))
-end 
+# function Φ₃(λᵢⱼₖ, ϵᵢⱼₖ, cosθᵢⱼₖ, cosθ₀, γᵢⱼ, γᵢₖ, σᵢⱼ, σᵢₖ, aᵢⱼ, aᵢₖ, rᵢⱼ, rᵢₖ)
+#     return λᵢⱼₖ*ϵᵢⱼₖ*((cosθᵢⱼₖ - cosθ₀)^2)*exp((γᵢⱼ*σᵢⱼ)/(rᵢⱼ-(aᵢⱼ*σᵢⱼ)))*exp((γᵢₖ*σᵢₖ)/(rᵢₖ-(aᵢₖ*σᵢₖ)))
+# end 
+

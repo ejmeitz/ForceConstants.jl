@@ -46,61 +46,156 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) 
 end
 
 function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon, tol; r_cut = pot.r_cut) where D
-    vars = make_variables(:r, D)
-    r_norm = sqrt(sum(x -> x^2, vars))
-    println("at start")
-    #2nd order part 
-    pot2_symbolic = pair_potential_nounits(pot, r_norm)
-    H2_symbolic = hessian(pot2_symbolic, vars)
-    H2_exec = make_function(H2_symbolic, vars)
 
-    println("here")
-    #3rd order part(s)
-    pot3_symbolic = threebody_potential_nounits(pot, r_norm)
-    H3_symbolic = hessian(pot3_symbolic, vars)
-    H3_exec = make_function(H3_symbolic, vars)
-    println("here3")
+    #2nd order part
+    r_ij_vars = make_variables(:rij, D) #rᵢ - rⱼ
+    r_ij_norm = sqrt(sum(x -> x^2, r_ij_vars))
+
+    pot2_symbolic = pair_potential_nounits(pot, r_ij_norm)
+    H2_symbolic = hessian(pot2_symbolic, r_ij_vars)
+    H2_exec = make_function(H2_symbolic, r_ij_vars)
+
+
+    # Three body part need to do a bit differently
+    r_i_vars = make_variables(:ri, D)
+    r_j_vars = make_variables(:rj, D)
+    r_k_vars = make_variables(:rk, D)
+
+    r_ij_threebody = r_i_vars .- r_j_vars
+    r_ik_threebody = r_i_vars .- r_k_vars
+    r_ij_norm_threebody = sqrt(sum(x -> x^2, r_ij_threebody))
+    r_ik_norm_threebody = sqrt(sum(x -> x^2, r_ik_threebody))
+
+    #3rd order part
+    pot3_symbolic = three_body_potential_nounits(pot, r_ij_threebody, r_ik_threebody, r_ij_norm_threebody, r_ik_norm_threebody)
+    
+    #Can't treat block of IFC as hessian
+    H3_symbolic_ij = Matrix{FastDifferentiation.Node}(undef, D, D)
+    for a in range(1,D)
+        for b in range(a,D)
+            H3_symbolic_ij[a,b] = derivative([pot3_symbolic], r_i_vars[a], r_j_vars[b])[1]
+            H3_symbolic_ij[b,a] = H3_symbolic_ij[a,b]
+        end
+    end
+
+    H3_symbolic_jk = Matrix{FastDifferentiation.Node}(undef, D, D)
+    for a in range(1,D)
+        for b in range(a,D)
+            H3_symbolic_jk[a,b] = derivative([pot3_symbolic], r_j_vars[a], r_k_vars[b])[1]
+            H3_symbolic_jk[b,a] = H3_symbolic_jk[a,b]
+        end
+    end
+
+    H3_symbolic_ik = Matrix{FastDifferentiation.Node}(undef, D, D)
+    for a in range(1,D)
+        for b in range(a,D)
+            H3_symbolic_ik[a,b] = derivative([pot3_symbolic], r_i_vars[a], r_k_vars[b])[1]
+            H3_symbolic_ik[b,a] = H3_symbolic_ik[a,b]
+        end
+    end
+
+    H3_exec_ij = make_function(H3_symbolic_ij, [r_i_vars; r_j_vars; r_k_vars])
+    H3_exec_jk = make_function(H3_symbolic_jk, [r_i_vars; r_j_vars; r_k_vars])
+    H3_exec_ik = make_function(H3_symbolic_ik, [r_i_vars; r_j_vars; r_k_vars])
+    
+    print("HERE")
     N_atoms = n_atoms(sys)
     IFC2 = zeros(D*N_atoms,D*N_atoms)
 
-    for i in range(1, N_atoms)
-        for j in range(i + 1, N_atoms)
+    #Loop over block matricies in IFC2 Matrix
+    Threads.@threads for a in range(1, N_atoms)
+        block = zeros(D,D)
+        for b in range(1, N_atoms) #& re write to only loop top half of matrix
+            if a != b #Ignore diagonal, do that with ASR
 
-            rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
-            rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
+                if a < b
+                    #2-body part of potential derivative only non-zero on r_ab term
+                    r_ab = sys.atoms.position[a] .- sys.atoms.position[b]
+                    r_ab = nearest_mirror!(r_ab, sys.box_sizes_SC)
+                    dist_ab = norm(r_ab)
 
-            if norm(rᵢⱼ) < r_cut
+                    if dist_ab < r_cut
+                        block .= H2_exec(ustrip.(r_ab))
 
-                #2nd order part
-                ij_block = H2_exec(ustrip.(rᵢⱼ))
-
-                IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= ij_block
-                IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= ij_block
-
-                #3rd order part(s)
-                for k in range(j + 1, N_atoms)
-                    rᵢₖ = sys.atoms.position[i] .- sys.atoms.position[k]
-                    nearest_mirror!(rᵢₖ, sys.box_sizes_SC)
-                    if norm(rᵢₖ) < r_cut
-                        rⱼₖ = sys.atoms.position[j] .- sys.atoms.position[k]
-                        nearest_mirror!(rⱼₖ, sys.box_sizes_SC)
-
-                        ij_block = H3_exec(ustrip.(rᵢⱼ))
-                        IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= ij_block
-                        IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= ij_block
-
-                        ik_block = H3_exec(ustrip.(rᵢₖ))
-                        IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= ik_block
-                        IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= ik_block
-
-                        jk_block = H3_exec(ustrip.(rⱼₖ))
-                        IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= jk_block
-                        IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= jk_block
+                        IFC2[D*(a-1) + 1 : D*(a-1) + D, D*(b-1) + 1 : D*(b-1) + D] .+= block
+                        IFC2[D*(b-1) + 1 : D*(b-1) + D, D*(a-1) + 1 : D*(a-1) + D] .+= block
                     end
                 end
+
+                #3-body part of potential derivative non-zero in multiple cases
+
+                #First term -- a,b = i,j
+                for k in range(b + 1, N_atoms)
+                    if k != a #avoid i = k a != b already checked
+                        r_ab = sys.atoms.position[a] .- sys.atoms.position[b]
+                        r_ab = nearest_mirror!(r_ab, sys.box_sizes_SC)
+                        dist_ab = norm(r_ab)
+
+                        r_ak = sys.atoms.position[a] .- sys.atoms.position[k]
+                        r_ak = nearest_mirror!(r_ak, sys.box_sizes_SC)
+                        dist_ak = norm(r_ak)
+
+                        if dist_ab < r_cut && dist_ak < r_cut
+                            nearest_j = sys.atoms.position[a] - r_ab
+                            nearest_k = sys.atoms.position[a] - r_ak
+                            block .= H3_exec_ij(ustrip.([sys.atoms.position[a]; nearest_j; nearest_k]))
+                            IFC2[D*(a-1) + 1 : D*(a-1) + D, D*(b-1) + 1 : D*(b-1) + D] .+= block
+                            # IFC2[D*(b-1) + 1 : D*(b-1) + D, D*(a-1) + 1 : D*(a-1) + D] .+= block
+                        end
+                    end
+                end
+
+                #Second term -- a,b = i,k
+                for j in range(1, N_atoms)
+                    if j != a #avoid i = j, a != b already checked
+                        r_aj = sys.atoms.position[a] .- sys.atoms.position[j]
+                        r_aj = nearest_mirror!(r_aj, sys.box_sizes_SC)
+                        dist_aj = norm(r_aj)
+
+                        r_ab = sys.atoms.position[a] .- sys.atoms.position[b]
+                        r_ab = nearest_mirror!(r_ab, sys.box_sizes_SC)
+                        dist_ab = norm(r_ab)
+                        
+
+                        if dist_aj < r_cut && dist_ab < r_cut
+                            nearest_j = sys.atoms.position[a] - r_aj
+                            nearest_k = sys.atoms.position[a] - r_ab
+                            block .= H3_exec_ik(ustrip.([sys.atoms.position[a]; nearest_j; nearest_k]))
+                            IFC2[D*(a-1) + 1 : D*(a-1) + D, D*(b-1) + 1 : D*(b-1) + D] .+= block
+                            # IFC2[D*(b-1) + 1 : D*(b-1) + D, D*(a-1) + 1 : D*(a-1) + D] .+= block
+                        end
+                    end
+                end
+
+                #Third term -- a,b = j,k
+                if a < b
+                    for i in range(1, N_atoms)
+                        if i != b && i != a
+                            r_ia = sys.atoms.position[i] .- sys.atoms.position[a]
+                            r_ia = nearest_mirror!(r_ia, sys.box_sizes_SC)
+                            dist_ia = norm(r_ia)
+    
+                            r_ib = sys.atoms.position[i] .- sys.atoms.position[b]
+                            r_ib = nearest_mirror!(r_ib, sys.box_sizes_SC)
+                            dist_ib = norm(r_ib)
+                            
+    
+                            if dist_ia < r_cut && dist_ib < r_cut
+                                nearest_j = sys.atoms.position[i] - r_ia
+                                nearest_k = sys.atoms.position[i] - r_ib
+                                block .= H3_exec_jk(ustrip.([sys.atoms.position[i]; nearest_j; nearest_k]))
+                                IFC2[D*(a-1) + 1 : D*(a-1) + D, D*(b-1) + 1 : D*(b-1) + D] .+= block
+                                IFC2[D*(b-1) + 1 : D*(b-1) + D, D*(a-1) + 1 : D*(a-1) + D] .+= block
+                            end
+                        end
+                    end
+                end
+
             end
         end
     end
+ 
+    
 
     #Acoustic Sum Rule
     Threads.@threads for i in range(1, N_atoms) # index of block matrix
