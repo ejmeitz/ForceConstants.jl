@@ -71,11 +71,13 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
         combos = [h,0.0*length_unit(pot),-h]
 
         for (c,combo) in enumerate(combos)
-            posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
+            posns[atom_idxs[1]][cartesian_idxs[1]] += combo
+            # posns[atom_idxs[1]][cartesian_idxs[2]] += combo
 
             energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
 
-            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
+            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo
+            # posns[atom_idxs[1]][cartesian_idxs[2]] -= combo
         end
 
         return (1/(h^2))*(energies[1] - 2*energies[2] + energies[3])
