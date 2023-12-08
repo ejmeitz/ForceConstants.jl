@@ -272,7 +272,7 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilic
                                 #ik terms
                                 block .= H3_exec_ik(ustrip.([sys.atoms.position[A]; nearest_j; nearest_k]))
                                 IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
-                                
+                                 
                                 #jk terms
                                 block .= H3_exec_jk(ustrip.([sys.atoms.position[A]; nearest_j; nearest_k]))
                                 IFC2[D*(B-1) + 1 : D*(B-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
