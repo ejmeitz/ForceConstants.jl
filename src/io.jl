@@ -1,6 +1,7 @@
 export save_second_order, save_third_order,
         parse_TDEP_second_order, parse_TDEP_third_order,
-        parse_ModeCode_third_order, parse_LAMMPS_dynmat, parse_LAMMPS_third_order
+        parse_ModeCode_third_order, parse_LAMMPS_dynmat, parse_LAMMPS_third_order,
+        parse_xyz
 
 
 # Methods to save data created with this package
@@ -312,4 +313,42 @@ function parse_LAMMPS_third_order(path::String, N_atoms::Int, unit_system::Symbo
     end
 
     return DenseForceConstants(F3, units, 0.0)
+end
+
+
+function parse_xyz(path, N_atoms, N_steps)
+
+    file_contents = readdlm(path);
+    positions = Vector{Vector{Vector{Float64}}}(undef, (N_steps,))
+    ids = Vector{Vector{Int64}}(undef, (N_steps,))
+
+    for i in 1:N_steps
+        positions[i] = Vector{Float64}[]
+        ids[i] = Int64[]
+    end
+
+    line_num = 0
+    step_num = 1
+    header_size = 2
+
+    for line in range(1,size(file_contents)[1])
+       
+        if line_num == 0 || line_num == 1
+            line_num += 1
+            continue
+        end
+
+        id, posn... = file_contents[line,:]
+        push!(positions[step_num], posn)
+        push!(ids[step_num], Int64(id))
+
+        line_num += 1
+
+        if line_num == N_atoms + header_size
+            line_num = 0
+            step_num += 1
+            continue
+        end
+    end
+    return positions, ids
 end
