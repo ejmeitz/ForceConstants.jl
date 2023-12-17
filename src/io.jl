@@ -193,6 +193,38 @@ function parse_TDEP_third_order(ifc_path::String, N_modes, energy_units = :REAL)
     return DenseForceConstants(Ψ, units, 0.0)
 end
 
+function parse_ModeCode_second_order(path::String, asr_path::String, N_atoms::Int, unit_system::Symbol = :REAL)
+    conversion_factor = 1.0
+    if unit_system == :REAL
+        # 1.889 bohr = 1 Å
+        # 313.75470835207074 kcal/mol = 1 Ryd
+        units = u"kcal * mol^-1 * Å^-2"
+        conversion_factor = (1.889725988*1.889725988)*313.75470835207074
+    elseif unit_system == :METAL
+        # 13.60569301 eV = 1 Ryd
+        units = u"eV * Å^-2"
+        conversion_factor = (1.889725988*1.889725988)*13.60569301
+    else
+        throw(ArgumentError("Unsupported unit_system: $(unit_system)"))
+    end
+
+    F2_file_contents = readdlm(path);
+    F2 = zeros((3*N_atoms, 3*N_atoms))
+    #first line is number of F3
+    for line in range(2,size(F2_file_contents)[1])
+        i, α, j, β, data = F2_file_contents[line,:]
+        F2[Int((3*(i-1)) + α), Int((3*(j-1)) + β)] = data*conversion_factor
+    end
+
+    ASR_file_contents = readdlm(asr_path)
+    for line in range(2,size(ASR_file_contents)[1])
+        i, α, j, β, data = ASR_file_contents[line,:]
+        F2[Int((3*(i-1)) + α), Int((3*(j-1)) + β)] = data*conversion_factor
+    end
+
+    return DenseForceConstants(F2, units, 0.0)
+end
+
 """
 Modecode assumes LAMMPS units were metal and converts to Ryd/Bohr^3.
 """

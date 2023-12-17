@@ -86,9 +86,6 @@ function energy_loop(pot::StillingerWeberSilicon, posns, box_sizes, N_atoms, r_c
     return U_total
 end
 
-
-
-
 # Calculates force on atom j in β direction
 function force_loop_j(pot::PairPotential, posns, force_unit, r_cut, box_sizes, N_atoms, j, β)
 
@@ -114,6 +111,7 @@ function force_loop_j(pot::PairPotential, posns, force_unit, r_cut, box_sizes, N
     return Fⱼᵦ
 
 end
+
 
 
 

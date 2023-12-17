@@ -48,8 +48,32 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
 
    posns = positions(sys_eq)
 
-   if atom_idxs[1] != atom_idxs[2]
 
+#    force_unit = energy_unit(pot) / length_unit(pot)
+#    Fᵦ₀ = force_loop_j(pot, posns, force_unit, r_cut, sys_eq.box_sizes_SC, N_atoms, atom_idxs[2], cartesian_idxs[2])
+#    posns[atom_idxs[1]][cartesian_idxs[1]] += h
+#    ΔFᵦ = force_loop_j(pot, posns, force_unit, r_cut, sys_eq.box_sizes_SC, N_atoms, atom_idxs[2], cartesian_idxs[2])
+#    posns[atom_idxs[1]][cartesian_idxs[1]] -= h
+#    return - (ΔFᵦ - Fᵦ₀)/h 
+
+
+
+    if atom_idxs[1] == atom_idxs[2] && cartesian_idxs[1] == cartesian_idxs[2]
+        energies = zeros(3)*energy_unit(pot)
+        combos = [h,0.0*length_unit(pot),-h]
+
+        for (c,combo) in enumerate(combos)
+            posns[atom_idxs[1]][cartesian_idxs[1]] += combo
+            # posns[atom_idxs[1]][cartesian_idxs[2]] += combo
+
+            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
+
+            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo
+            # posns[atom_idxs[1]][cartesian_idxs[2]] -= combo
+        end
+
+        return (1/(h^2))*(energies[1] - 2*energies[2] + energies[3])
+    else #& should this just be for atom_idxs[1] != atom_idxs[2]???
         energies = zeros(4)*energy_unit(pot)
         combos = [[h,h],[-h,-h],[h,-h],[-h,h]]
 
@@ -66,22 +90,6 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
         end
 
         return (1/(4*h^2))*(energies[1] + energies[2] - energies[3] - energies[4])
-    else
-        energies = zeros(3)*energy_unit(pot)
-        combos = [h,0.0*length_unit(pot),-h]
-
-        for (c,combo) in enumerate(combos)
-            posns[atom_idxs[1]][cartesian_idxs[1]] += combo
-            # posns[atom_idxs[1]][cartesian_idxs[2]] += combo
-
-            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
-
-            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo
-            # posns[atom_idxs[1]][cartesian_idxs[2]] -= combo
-        end
-
-        return (1/(h^2))*(energies[1] - 2*energies[2] + energies[3])
-
     end
 end
 
@@ -225,3 +233,15 @@ function check_ifc(sys::SuperCellSystem{D}, ifc::SparseForceConstants{O}, pot::P
     return ifc_fd,  (ifc_actual.*ifc.units)
 
 end
+
+# Threads.@threads for i in 1:512
+#     for j in i+1:512
+#         for a in 1:3
+#             for b in 1:3
+#                ii = 3*(i-1) + a; jj= 3*(j-1) + b
+#                 phi_FD_sw[ii,jj] = ustrip(second_order_finite_diff_single(sys, pot, [i,j],[a,b]))
+#                 phi_FD_sw[jj,ii] = phi_FD_sw[ii,jj]
+#             end
+#         end
+#     end
+# end
