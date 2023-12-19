@@ -54,7 +54,7 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
      calc::AutoDiffCalculator) where D
 
     H2_exec, H3_exec_ij, H3_exec_jk, H3_exec_ik = 
-        get_three_body_derivs(pot)
+        three_body_second_derivs(pot, D)
    
     N_atoms = n_atoms(sys)
     IFC2 = zeros(D*N_atoms,D*N_atoms)
@@ -135,3 +135,59 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
 
 end
+
+
+# function second_order_check(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
+#     calc::AutoDiffCalculator) where D
+#     #loop through blocks in IFC2
+#     for i in range(1, N_atoms)
+#         for j in range(i + 1, N_atoms)
+
+#             #Derivative of two body term is nonzero only for r_ij term
+#             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
+#             rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
+#             dist_ij_sq = sum(x -> x^2, rᵢⱼ)
+
+#             if dist_ij_sq < r_cut_sq
+#                 ij_block = H_exec(ustrip.(rᵢⱼ))
+
+#                 IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .= ij_block
+#                 IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .= ij_block
+#             end
+
+
+#             #Derivative of three body term is non-zero in multiple places
+
+#             #When i,j = 1st,2nd atoms in triplet
+#             for k in range(j+1)
+#                 rᵢₖ = sys.atoms.position[i] .- sys.atoms.position[k]
+#                 rᵢₖ = nearest_mirror!(rᵢₖ, sys.box_sizes_SC)
+#                 dist_ik_sq = sum(x -> x^2, rᵢₖ)
+
+#                 if dist_ik_sq < r_cut_sq
+#                     nearest_j .= sys.atoms.position[i] .- rᵢⱼ
+#                     nearest_k .= sys.atoms.position[i] .- rᵢₖ
+        
+#                     r_arr .= ustrip.([sys.atoms.position[A]; nearest_j; nearest_k])
+#                     block .= H3_exec_ij(r_arr)
+#                     IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
+#                     IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= block
+#                 end
+#             end
+
+#             #When i,j = 1st,3rd atoms in triplet
+#             for j in range(1,k-1)
+#                 nearest_i = rᵢⱼ .+ sys.atoms.position[j]
+#             end
+
+#             #When i,j = 2nd,3rd atoms in triplet
+#             for i in range(1,N_atoms)
+
+#             end
+
+#         end
+#     end
+
+#     return IFC2
+
+# end

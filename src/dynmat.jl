@@ -1,15 +1,15 @@
-export dynamical_matrix, get_modes
+export dynamical_matrix, dynamical_matrix!, get_modes
 
 ### Super Cell ###
 
-function dynamical_matrix(sys::SuperCellSystem{D}, pot::PairPotential, tol; 
+function dynamical_matrix(sys::SuperCellSystem{D}, pot::PairPotential; 
     calc::ForceConstantCalculator) where D
 
     @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
     N_atoms = n_atoms(sys)
 
     #reuse storage from IFC2 calculation
-    dynmat = second_order(sys, pot, tol, calc)
+    dynmat = second_order(sys, pot, calc)
 
     #Mass Weight
     Threads.@threads for i in range(1, N_atoms)
@@ -27,9 +27,35 @@ function dynamical_matrix(sys::SuperCellSystem{D}, pot::PairPotential, tol;
     #Add final units to dynamical matrix
     dynmat_unit = dynmat.units / unit(mass(sys,1))
 
-    return DenseForceConstants(dynmat.values, dynmat_unit, tol)
+    return DenseForceConstants(dynmat.values, dynmat_unit, calc.tol)
 end
 
+function dynamical_matrix!(dynmat, sys::SuperCellSystem{D}, pot::PairPotential; 
+    calc::ForceConstantCalculator) where D
+
+    @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
+    N_atoms = n_atoms(sys)
+
+    @assert size(dynmat) == (D*N_atoms, D*N_atoms)
+
+    #reuse storage from IFC2 calculation
+    dynmat = second_order!(dynmat, sys, pot, calc)
+
+    #Mass Weight
+    Threads.@threads for i in range(1, N_atoms)
+        for j in range(1, N_atoms)
+            for α in range(1,D)
+                for β in range(1,D)
+                    ii = D*(i-1) + α
+                    jj = D*(j-1) + β
+                    dynmat[ii,jj] /=  ustrip(sqrt(mass(sys,i)*mass(sys,j)))
+                end
+            end
+        end
+    end
+
+    return dynmat
+end
 
 ### Get Modes ###
 """

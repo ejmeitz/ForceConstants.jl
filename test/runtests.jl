@@ -79,6 +79,33 @@ end
     
 end
 
+@testset "MCC vs MCC Lowmem" begin
+    
+    #Load test dataset
+    if run_gpu_tests
+        m = 39.95
+        phi, dynmat, F3, K3_actual, freqs_sq = load("./test_data/TEP.jld2", "phi", "dynmat", "F3", "K3", "freqs_sq")
+        N_modes = length(freqs_sq) #should be 96
+
+        block_size = 32
+        F3 ./= sqrt(m^3)
+        cuF3 = CuArray{Float32}(F3)
+        cuPhi =CuArray{Float32}(phi)
+        K3_full = mcc3_ground_truth(cuF3, cuPhi)
+        K3_blocked = mcc3(cuF3, cuPhi, block_size)
+
+        K3_lowmem1 = Array(mcc3(cuF3, cuPhi))
+        K3_lowmem2 = Array(mcc3!(cuF3, cuPhi))
+
+
+        @test isapprox(K3_actual, K3_full, atol = 1e-6)
+        @test isapprox(K3_actual, K3_blocked, atol = 1e-6)
+        @test isapprox(K3_actual, K3_lowmem1, atol = 1e-6)
+        @test isapprox(K3_actual, K3_lowmem2, atol = 1e-6)
+    end
+
+end
+
 @test "Third Order" begin
 
     # Analytical vs Sparse vs FD vs AD (Pair)
