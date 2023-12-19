@@ -100,141 +100,16 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilic
     
     N_atoms = n_atoms(sys)
     IFC2 = zeros(D*N_atoms,D*N_atoms)
-    r_cut_sq = r_cut*r_cut
-    #Loop over block matricies in IFC2 Matrix
-    # Threads.@threads for a in 1:N_atoms
-    #     block = zeros(D,D)
-    #     for b in 1:N_atoms #& re write to only loop top half of matrix
-    #         if a != b #Ignore diagonal, do that with ASR
-
-    #             if a < b
-    #                 #2-body part of potential derivative only non-zero on r_ab term
-    #                 r_ab = sys.atoms.position[a] .- sys.atoms.position[b]
-    #                 r_ab = nearest_mirror!(r_ab, sys.box_sizes_SC)
-    #                 dist_ab = norm(r_ab)
-
-    #                 if dist_ab < r_cut
-    #                     block .= H2_exec(ustrip.(r_ab))
-
-    #                     IFC2[D*(a-1) + 1 : D*(a-1) + D, D*(b-1) + 1 : D*(b-1) + D] .+= block
-    #                     IFC2[D*(b-1) + 1 : D*(b-1) + D, D*(a-1) + 1 : D*(a-1) + D] .+= block
-    #                 end
-    #             end
-
-    #             #3-body part of potential derivative non-zero in multiple cases
-
-    #             #First term -- a,b = i,j
-    #             for k in range(b + 1, N_atoms)
-    #                 if k != a #avoid i = k a != b already checked
-    #                     r_ab = sys.atoms.position[a] .- sys.atoms.position[b]
-    #                     r_ab = nearest_mirror!(r_ab, sys.box_sizes_SC)
-    #                     dist_ab = norm(r_ab)
-
-    #                     r_ak = sys.atoms.position[a] .- sys.atoms.position[k]
-    #                     r_ak = nearest_mirror!(r_ak, sys.box_sizes_SC)
-    #                     dist_ak = norm(r_ak)
-
-    #                     if dist_ab < r_cut && dist_ak < r_cut
-    #                         nearest_j = sys.atoms.position[a] - r_ab
-    #                         nearest_k = sys.atoms.position[a] - r_ak
-    #                         block .= H3_exec_ij(ustrip.([sys.atoms.position[a]; nearest_j; nearest_k]))
-    #                         IFC2[D*(a-1) + 1 : D*(a-1) + D, D*(b-1) + 1 : D*(b-1) + D] .+= block
-    #                         IFC2[D*(b-1) + 1 : D*(b-1) + D, D*(a-1) + 1 : D*(a-1) + D] .+= block
-    #                     end
-    #                 end
-    #             end
-
-    #             #Second term -- a,b = i,k
-    #             # for j in range(1, b-1) #1-b or 1- Natoms
-    #             #     if j != a #avoid i = j, a != b already checked
-    #             #         r_aj = sys.atoms.position[a] .- sys.atoms.position[j]
-    #             #         r_aj = nearest_mirror!(r_aj, sys.box_sizes_SC)
-    #             #         dist_aj = norm(r_aj)
-
-    #             #         r_ab = sys.atoms.position[a] .- sys.atoms.position[b]
-    #             #         r_ab = nearest_mirror!(r_ab, sys.box_sizes_SC) 
-    #             #         dist_ab = norm(r_ab)
-                        
-
-    #             #         if dist_aj < r_cut && dist_ab < r_cut
-    #             #             nearest_j = sys.atoms.position[a] - r_aj
-    #             #             nearest_k = sys.atoms.position[a] - r_ab
-    #             #             block .= H3_exec_ik(ustrip.([sys.atoms.position[a]; nearest_j; nearest_k]))
-    #             #             IFC2[D*(a-1) + 1 : D*(a-1) + D, D*(b-1) + 1 : D*(b-1) + D] .+= block
-    #             #             # IFC2[D*(b-1) + 1 : D*(b-1) + D, D*(a-1) + 1 : D*(a-1) + D] .+= block
-    #             #         end
-    #             #     end
-    #             # end
-
-    #             #Third term -- a,b = j,k
-    #             if a < b
-    #                 for i in range(1, N_atoms)
-    #                     if i != b && i != a
-    #                         r_ia = sys.atoms.position[i] .- sys.atoms.position[a]
-    #                         r_ia = nearest_mirror!(r_ia, sys.box_sizes_SC)
-    #                         dist_ia = norm(r_ia)
-    
-    #                         r_ib = sys.atoms.position[i] .- sys.atoms.position[b]
-    #                         r_ib = nearest_mirror!(r_ib, sys.box_sizes_SC)
-    #                         dist_ib = norm(r_ib)
-                            
-    
-    #                         if dist_ia < r_cut && dist_ib < r_cut
-    #                             nearest_j = sys.atoms.position[i] - r_ia
-    #                             nearest_k = sys.atoms.position[i] - r_ib
-    #                             block .= H3_exec_jk(ustrip.([sys.atoms.position[i]; nearest_j; nearest_k]))
-    #                             IFC2[D*(a-1) + 1 : D*(a-1) + D, D*(b-1) + 1 : D*(b-1) + D] .+= block
-    #                             # IFC2[D*(b-1) + 1 : D*(b-1) + D, D*(a-1) + 1 : D*(a-1) + D] .+= block
-    #                         end
-    #                     end
-    #                 end
-    #             end
-
-    #         end
-    #     end
-    # end
-
-    # function print_derivs(N_atoms)
-    #     for a in 1:N_atoms
-    #         for b in 1:N_atoms
-    #             if a != b
-    #                 if a < b
-    #                     println("Partial Φ₂(r$(a)$(b))")
-    #                 end
-
-    #                 for k in range(b + 1, N_atoms)
-    #                     if k != a #avoid i = k a != b already checked
-    #                         println("Partial Φ₃(r$(a)$(b), r$(a)$(k)) from ij")
-    #                     end
-    #                 end
-
-    #                 # for j in range(1, b-1) #1-b or 1- Natoms
-    #                 #     if j != a #avoid i = j, a != b already checked
-    #                 #         println("Partial Φ₃(r$(a)$(j), r$(a)$(b)) from ik")
-    #                 #     end
-    #                 # end
-
-    #                 # if a < b
-    #                 #     for i in range(1, N_atoms)
-    #                 #         if i != b && i != a
-    #                 #             println("Partial Φ₃(r$(i)$(a), r$(i)$(b)) from jk")
-    #                 #         end
-    #                 #     end
-    #                 # end
-    #             end
-    #         end
-    #     end
-    # end
-
-   
+    r_cut_sq = r_cut*r_cut  
 
     #Loop Atomic Interactions and Add their contribution to various derivatives
-    Threads.@threads for A in range(1,N_atoms)
+    for A in range(1,N_atoms)
         block = zeros(D,D)
         r_ab = similar(sys.atoms.position[1])
         rᵢₖ = similar(sys.atoms.position[1])
         nearest_j = similar(sys.atoms.position[1])
         nearest_k = similar(sys.atoms.position[1])
+        r_arr = Vector{Float64}(undef, D*D)
         for B in range(1, N_atoms)
             if A != B
                 #Two body term
@@ -246,8 +121,6 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilic
 
                     if A < B
                         block .= H2_exec(ustrip.(r_ab))
-
-                        #*Minus sign needed???
                         IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(B-1) + 1 : D*(B-1) + D] .-= block
                         IFC2[D*(B-1) + 1 : D*(B-1) + D, D*(A-1) + 1 : D*(A-1) + D] .-= block
                     end
@@ -258,28 +131,27 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilic
                             rᵢₖ .= sys.atoms.position[A] .- sys.atoms.position[k]
                             nearest_mirror!(rᵢₖ, sys.box_sizes_SC)
                             dist_ik_sq = sum(x -> x^2, rᵢₖ)
-                            # dist_ik_sq = sum(x -> x^2, rᵢₖ)
                             
                             if dist_ik_sq < r_cut_sq
                                 #ϕ₃(rᵢⱼ, rᵢₖ) contributes to ∂ri∂rj, ∂ri∂rk, ∂rj∂rk (and the symmetric versions)
-                                nearest_j .= sys.atoms.position[A] - r_ab
-                                nearest_k .= sys.atoms.position[A] - rᵢₖ
-                                #ij terms
-                                block .= H3_exec_ij(ustrip.([sys.atoms.position[A]; nearest_j; nearest_k]))
+                                nearest_j .= sys.atoms.position[A] .- r_ab
+                                nearest_k .= sys.atoms.position[A] .- rᵢₖ
+                 
+                                #ij contribution
+                                r_arr .= ustrip.([sys.atoms.position[A]; nearest_j; nearest_k])
+                                block .= H3_exec_ij(r_arr)
                                 IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(B-1) + 1 : D*(B-1) + D] .+= block
+                                IFC2[D*(B-1) + 1 : D*(B-1) + D, D*(A-1) + 1 : D*(A-1) + D] .+= block
                                 
-                                #*Why does removing tehse do nothing??
-                                #ik terms
-                                block .= H3_exec_ik(ustrip.([sys.atoms.position[A]; nearest_j; nearest_k]))
+                                #ik contribution
+                                block .= H3_exec_ik(r_arr)
                                 IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
+                                IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(A-1) + 1 : D*(A-1) + D] .+= block
                                  
-                                #jk terms
-                                block .= H3_exec_jk(ustrip.([sys.atoms.position[A]; nearest_j; nearest_k]))
+                                #jk contribution
+                                block .= H3_exec_jk(r_arr)
                                 IFC2[D*(B-1) + 1 : D*(B-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
-
-                                #*do these need symmetries?
-                                #* right now only populates top half of matrix cause k > j
-
+                                IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(B-1) + 1 : D*(B-1) + D] .+= block
                             end
                         end
                     end
@@ -288,7 +160,7 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilic
 
         end
     end
-    
+
 
     #Acoustic Sum Rule
     Threads.@threads for i in range(1, N_atoms) # index of block matrix
@@ -305,6 +177,38 @@ function second_order_AD_test(sys::SuperCellSystem{D}, pot::StillingerWeberSilic
 
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
 
+end
+
+function print_derivs(N_atoms)
+    for a in 1:N_atoms
+        for b in 1:N_atoms
+            if a != b
+                if a < b
+                    println("Partial Φ₂(r$(a)$(b))")
+                end
+
+                for k in range(b + 1, N_atoms)
+                    if k != a #avoid i = k a != b already checked
+                        println("Partial Φ₃(r$(a)$(b), r$(a)$(k)) from ij")
+                    end
+                end
+
+                # for j in range(1, b-1) #1-b or 1- Natoms
+                #     if j != a #avoid i = j, a != b already checked
+                #         println("Partial Φ₃(r$(a)$(j), r$(a)$(b)) from ik")
+                #     end
+                # end
+
+                # if a < b
+                #     for i in range(1, N_atoms)
+                #         if i != b && i != a
+                #             println("Partial Φ₃(r$(i)$(a), r$(i)$(b)) from jk")
+                #         end
+                #     end
+                # end
+            end
+        end
+    end
 end
 
 function third_order_AD_test(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D

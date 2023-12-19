@@ -49,7 +49,7 @@ end
 function energy_loop(pot::StillingerWeberSilicon, posns, box_sizes, N_atoms, r_cut)
 
     U_total = 0.0*energy_unit(pot)
-    forces = zeros(N_atoms, 3)*energy_unit(pot)/length_unit(pot)
+    # forces = zeros(N_atoms, 3)*energy_unit(pot)/length_unit(pot)
 
     rᵢⱼ = similar(posns[1])
     rᵢₖ = similar(posns[1])
@@ -66,8 +66,8 @@ function energy_loop(pot::StillingerWeberSilicon, posns, box_sizes, N_atoms, r_c
 
                     if i < j
                         U_total += pair_potential(pot, sqrt(dist_ij_sq))
-                        forces[i,:] += 
-                        forces[j,:] -= 
+                        # forces[i,:] += 0
+                        # forces[j,:] -= 0
                     end
 
                     for k in range(j+1, N_atoms)
@@ -168,8 +168,6 @@ function force_loop_j(pot::PairPotential, posns, force_unit, r_cut, box_sizes, N
     return Fⱼᵦ
 
 end
-
-
 
 
 

@@ -77,6 +77,7 @@ end
 
 Base.size(fc::DenseForceConstants) = size(fc.values)
 Base.getindex(fc::DenseForceConstants{O}, idxs::Vararg{Integer, O}) where O = fc.values[idxs...]
+Base.getindex(fc::DenseForceConstants{O}, idxs::Vararg{UnitRange, O}) where O = fc.values[idxs...]
 Base.getindex(fc::DenseForceConstants{O}, idxs::CartesianIndex{O}) where O = fc.values[idxs]
 
 n_modes(fc::DenseForceConstants) = size(fc)[1]
@@ -85,6 +86,7 @@ n_modes(fc::DenseForceConstants) = size(fc)[1]
 const SecondOrderForceConstants{V,U,T} = DenseForceConstants{2,V,U,T}
 const ThirdOrderForceConstants{V,U,T} = DenseForceConstants{3,V,U,T}
 const FourthOrderForceConstants{V,U,T} = DenseForceConstants{4,V,U,T}
+
 
 struct F4_val{V,I} <: FC_val{V,I} #Int16 is usually fine and helps with SIMD
     val::V
