@@ -1,7 +1,7 @@
 export second_order
 
 function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
-     tol, calc::AutoDiffCalculator) where D
+      calc::AutoDiffCalculator) where D
 
     vars = make_variables(:r, D)
     r_norm = sqrt(sum(x -> x^2, vars))
@@ -44,14 +44,14 @@ function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
     # dU/dr_i_a = - dU/dr_ij_a
     IFC2 = -1 .* IFC2 
 
-    IFC2 = apply_tols!(IFC2,tol)
+    IFC2 = apply_tols!(IFC2, calc.tol)
 
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
 
 end
 
 function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
-     tol, calc::AutoDiffCalculator) where D
+     calc::AutoDiffCalculator) where D
 
     H2_exec, H3_exec_ij, H3_exec_jk, H3_exec_ik = 
         get_three_body_derivs(pot)
@@ -130,7 +130,7 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
         end
     end
 
-    IFC2 = apply_tols!(IFC2,tol)
+    IFC2 = apply_tols!(IFC2, calc.tol)
 
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
 

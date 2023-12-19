@@ -2,7 +2,7 @@
 
 #*add r_cut 
 # function fourth_order(sys::SuperCellSystem{D}, pot::PairPotential,
-#    tol, calc::AutoDiffCalculator) where D
+#     calc::AutoDiffCalculator) where D
 #     vars = make_variables(:r, D)
 #     r_norm = sqrt(sum(x -> x^2, vars))
 #     pot_symbolic = potential_nounits(pot, r_norm)

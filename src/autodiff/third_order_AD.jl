@@ -1,7 +1,7 @@
 export third_order
 
 function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
-      tol, calc::AutoDiffCalculator) where D
+      calc::AutoDiffCalculator) where D
 
     vars = make_variables(:r, D)
     r_norm = sqrt(sum(x -> x^2, vars))
@@ -64,7 +64,7 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
     #Acoustic Sum Rule
     ASR!(IFC3, N_atoms, D)
 
-    IFC3 = apply_tols!(IFC3,tol)
+    IFC3 = apply_tols!(IFC3, calc.tol)
 
     return DenseForceConstants(IFC3, energy_unit(pot) / length_unit(pot)^3, tol)
 

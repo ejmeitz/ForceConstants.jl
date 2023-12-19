@@ -1,6 +1,8 @@
-export second_order_analytical
+export second_order
 
-function second_order_analytical(sys::SuperCellSystem{D}, pot::PairPotential, tol) where D
+function second_order(sys::SuperCellSystem{D}, pot::PairPotential, 
+    calc::AnalyticalCalculator) where D
+
     N_atoms = n_atoms(sys)
     IFC2 = zeros(D*N_atoms,D*N_atoms)
 
@@ -10,9 +12,10 @@ function second_order_analytical(sys::SuperCellSystem{D}, pot::PairPotential, to
 
             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
             rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
-            dist = norm(rᵢⱼ)
+            dist_sq = sum(x -> x^2, r)
 
-            if dist < pot.r_cut
+            if dist_sq < r_cut_sq
+                dist = norm(rᵢⱼ)
                 for α in range(1,D)
                     for β in range(1,D)
 
@@ -39,9 +42,9 @@ function second_order_analytical(sys::SuperCellSystem{D}, pot::PairPotential, to
         end
     end
 
-    IFC2 = apply_tols!(IFC2,tol)
+    IFC2 = apply_tols!(IFC2, calc.tol)
 
-    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
+    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, calc.tol)
 
 end
 

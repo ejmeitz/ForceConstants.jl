@@ -188,14 +188,23 @@ end
 #########################
 abstract type ForceConstantCalculator end
 
-struct AnalyticalCalculator <: ForceConstantCalculator end
+struct AnalyticalCalculator{T} <: ForceConstantCalculator
+    tol::T
+end
 
-struct AutoDiffCalculator{R} <: ForceConstantCalculator
+struct AutoDiffCalculator{R,T} <: ForceConstantCalculator
+    tol::T
     r_cut::R
 end
 
 struct FiniteDiffCalculator{H,R} <: ForceConstantCalculator
-    h::H
     r_cut::R
+    h::H
+end
+
+function FiniteDiffCalculator(r_cut; h = 0.04*0.5291772109u"Å")
+    return FiniteDiffCalculator{typeof(r_cut), typeof(h)}(
+        r_cut, h
+    )
 end
 
