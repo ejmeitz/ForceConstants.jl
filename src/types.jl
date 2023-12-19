@@ -185,3 +185,17 @@ function Base.convert(::Type{Vector{T}}, mvs::MultiVectorStorage{T}) where T
     return reduce(vcat, mvs.data)
 end
 
+#########################
+abstract type ForceConstantCalculator end
+
+struct AnalyticalCalculator <: ForceConstantCalculator end
+
+struct AutoDiffCalculator{R} <: ForceConstantCalculator
+    r_cut::R
+end
+
+struct FiniteDiffCalculator{H,R} <: ForceConstantCalculator
+    h::H
+    r_cut::R
+end
+
