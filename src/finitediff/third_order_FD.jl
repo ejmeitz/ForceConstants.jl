@@ -1,7 +1,7 @@
 export third_order
 
-function third_order(sys_eq::SuperCellSystem{3}, pot::Potential,
-    calc::FiniteDiffCalculator)
+function third_order(sys_eq::SuperCellSystem{D}, pot::Potential,
+    calc::FiniteDiffCalculator) where D
 
     throw(error("Not implemented yet"))
     

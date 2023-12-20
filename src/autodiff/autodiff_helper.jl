@@ -25,7 +25,6 @@ function three_body_second_derivs(pot::StillingerWeberSilicon, D)
     H3_symbolic_ij = Matrix{FastDifferentiation.Node}(undef, D, D)
     for a in range(1,D)
         for b in range(a,D)
-            println(r_i_vars[a], " ",r_j_vars[b])
             H3_symbolic_ij[a,b] = derivative([pot3_symbolic], r_i_vars[a], r_j_vars[b])[1]
             H3_symbolic_ij[b,a] = H3_symbolic_ij[a,b]
         end
@@ -34,7 +33,6 @@ function three_body_second_derivs(pot::StillingerWeberSilicon, D)
     H3_symbolic_jk = Matrix{FastDifferentiation.Node}(undef, D, D)
     for a in range(1,D)
         for b in range(a,D)
-            println(r_i_vars[a], " ",r_j_vars[b])
             H3_symbolic_jk[a,b] = derivative([pot3_symbolic], r_j_vars[a], r_k_vars[b])[1]
             H3_symbolic_jk[b,a] = H3_symbolic_jk[a,b]
         end

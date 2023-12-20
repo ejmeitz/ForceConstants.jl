@@ -2,10 +2,12 @@ export dynamical_matrix, dynamical_matrix!, get_modes
 
 ### Super Cell ###
 
-function dynamical_matrix(sys::SuperCellSystem{D}, pot::PairPotential; 
+function dynamical_matrix(sys::SuperCellSystem{D}, pot::Potential, 
     calc::ForceConstantCalculator) where D
 
-    @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
+    if any(calc.r_cut .> sys.box_sizes_SC)
+         @warn "Cutoff larger than L/2"
+    end
     N_atoms = n_atoms(sys)
 
     #reuse storage from IFC2 calculation
@@ -27,13 +29,15 @@ function dynamical_matrix(sys::SuperCellSystem{D}, pot::PairPotential;
     #Add final units to dynamical matrix
     dynmat_unit = dynmat.units / unit(mass(sys,1))
 
-    return DenseForceConstants(dynmat.values, dynmat_unit, calc.tol)
+    return DenseForceConstants(dynmat.values, dynmat_unit, 0.0)
 end
 
-function dynamical_matrix!(dynmat, sys::SuperCellSystem{D}, pot::PairPotential; 
+function dynamical_matrix!(dynmat, sys::SuperCellSystem{D}, pot::Potential, 
     calc::ForceConstantCalculator) where D
 
-    @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
+    if any(calc.r_cut .> sys.box_sizes_SC)
+        @warn "Cutoff larger than L/2"
+    end
     N_atoms = n_atoms(sys)
 
     @assert size(dynmat) == (D*N_atoms, D*N_atoms)

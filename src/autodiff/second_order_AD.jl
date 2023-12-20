@@ -53,6 +53,9 @@ end
 function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
      calc::AutoDiffCalculator) where D
 
+    @assert calc.r_cut <= pot.r_cut "For SW silicon force constant 
+        cutoff must be less than potential cutoff"
+
     H2_exec, H3_exec_ij, H3_exec_jk, H3_exec_ik = 
         three_body_second_derivs(pot, D)
    
@@ -61,7 +64,7 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     r_cut_sq = calc.r_cut*calc.r_cut  
 
     #Loop Atomic Interactions and Add their contribution to various derivatives
-    for A in range(1,N_atoms)
+    Threads.@threads for A in range(1,N_atoms)
         block = zeros(D,D)
         r_ab = similar(sys.atoms.position[1])
         rᵢₖ = similar(sys.atoms.position[1])
@@ -76,7 +79,6 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                 dist_ab_sq = sum(x -> x^2, r_ab)
 
                 if dist_ab_sq < r_cut_sq
-
                     if A < B
                         block .= H2_exec(ustrip.(r_ab))
                         IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(B-1) + 1 : D*(B-1) + D] .-= block

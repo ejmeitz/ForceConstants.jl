@@ -1,30 +1,42 @@
 export second_order, second_order_finite_diff_single
 
 #* this is incredibly slow
-function second_order(sys_eq::SuperCellSystem{3}, pot::Potential,
-    calc::FiniteDiffCalculator)
+function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
+    calc::FiniteDiffCalculator) where D
 
     N_atoms = n_atoms(sys_eq)
-    IFC2 = zeros(3*N_atoms, 3*N_atoms)
+    IFC2 = zeros(D*N_atoms, D*N_atoms)
+
+    r_cut_sq = calc.r_cut^2
 
     Threads.@threads for i in range(1, N_atoms)
+        rᵢⱼ = similar(sys_eq.atoms.position[1])
         for j in range(i+1, N_atoms)
-            for α in range(1,3)
-                for β in range(1,3)
-                    ii = 3*(i-1) + α
-                    jj = 3*(j-1) + β
-                    IFC2[ii,jj] = ustrip(second_order_finite_diff_single(sys_eq, pot, [i,j], [α,β],
-                         calc.r_cut, calc.h))
+
+            rᵢⱼ .= sys_eq.atoms.position[i] .- sys_eq.atoms.position[j]
+            nearest_mirror!(rᵢⱼ, sys_eq.box_sizes_SC)
+            dist_ij_sq = sum(x -> x^2, rᵢⱼ)
+
+            if dist_ij_sq < r_cut_sq
+                for α in range(1,D)
+                    for β in range(1,D)
+                        ii = D*(i-1) + α
+                        jj = D*(j-1) + β
+                        IFC2[ii,jj] = ustrip(second_order_finite_diff_single(sys_eq, pot, [i,j], [α,β],
+                            calc.r_cut, calc.h))
+                        IFC2[jj,ii] = IFC2[ii,jj]
+                    end
                 end
             end
+
         end 
     end
 
     Threads.@threads for i in range(1, N_atoms) # index of block matrix
-        for α in range(1,3)
-            for β in range(1,3)
-                ii = 3*(i-1) + α
-                jj = 3*(i-1) + β # i == j because we're on diagonal
+        for α in range(1,D)
+            for β in range(1,D)
+                ii = D*(i-1) + α
+                jj = D*(i-1) + β # i == j because we're on diagonal
                 IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
             end
         end
