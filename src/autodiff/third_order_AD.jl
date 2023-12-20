@@ -24,7 +24,7 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
 
             if dist_ij_sq < r_cut_sq
           
-               iij_block = TO_exec(ustrip.(rᵢⱼ))
+               iij_block = -TO_exec(ustrip.(rᵢⱼ))
 
                #i,i,j terms
                IFC3[D*(i-1) + 1 : D*(i-1) + D,
@@ -43,7 +43,7 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
                rᵢⱼ = sys.atoms.position[j] .- sys.atoms.position[i]
                rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
 
-               ijj_block = TO_exec(ustrip.(rᵢⱼ))
+               ijj_block = -TO_exec(ustrip.(rᵢⱼ))
 
                #ijj terms
                IFC3[D*(i-1) + 1 : D*(i-1) + D,
@@ -66,7 +66,7 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
 
     IFC3 = apply_tols!(IFC3, calc.tol)
 
-    return DenseForceConstants(IFC3, energy_unit(pot) / length_unit(pot)^3, tol)
+    return DenseForceConstants(IFC3, energy_unit(pot) / length_unit(pot)^3, calc.tol)
 
 end
 
@@ -155,6 +155,6 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
 
     IFC2 = apply_tols!(IFC2, calc.tol)
 
-    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
+    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, calc.tol)
 
 end

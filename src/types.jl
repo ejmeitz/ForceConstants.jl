@@ -1,7 +1,7 @@
 export SuperCellSystem, Potential, PairPotential, ThreeBodyPotential,
     masses, mass, position, positions, charges, charge, n_atoms, n_atoms_per_uc,
     SparseForceConstants, DenseForceConstants, F3_val, F4_val,
-    ForceConstantCalculator
+    ForceConstantCalculator, AnalyticalCalculator, AutoDiffCalculator, FiniteDiffCalculator
 
 struct Atom{P,C,M}
     position::P
@@ -189,8 +189,9 @@ end
 #########################
 abstract type ForceConstantCalculator end
 
-struct AnalyticalCalculator{T} <: ForceConstantCalculator
+struct AnalyticalCalculator{T,R} <: ForceConstantCalculator
     tol::T
+    r_cut::R
 end
 
 struct AutoDiffCalculator{R,T} <: ForceConstantCalculator

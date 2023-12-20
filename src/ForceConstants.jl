@@ -31,6 +31,7 @@ include("./autodiff/second_order_AD.jl")
 include("./autodiff/third_order_AD.jl")
 include("./autodiff/fourth_order_AD.jl")
 
+include("./finitediff/finitediff_helper.jl")
 include("./finitediff/second_order_FD.jl")
 include("./finitediff/third_order_FD.jl")
 include("./finitediff/fourth_order_FD.jl")
@@ -43,6 +44,5 @@ include("./analytical/fourth_order_analytical.jl")
 include("dynmat.jl")
 include("mcc.jl")
 include("io.jl") 
-include("average_INM.jl")
 
 end

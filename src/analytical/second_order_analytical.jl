@@ -5,6 +5,7 @@ function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
 
     N_atoms = n_atoms(sys)
     IFC2 = zeros(D*N_atoms,D*N_atoms)
+    r_cut_sq = calc.r_cut*calc.r_cut
 
     #Loop block matricies above diagonal (not including diagonal)
     for i in range(1,N_atoms)
@@ -12,7 +13,7 @@ function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
 
             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
             rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
-            dist_sq = sum(x -> x^2, r)
+            dist_sq = sum(x -> x^2, rᵢⱼ)
 
             if dist_sq < r_cut_sq
                 dist = norm(rᵢⱼ)
@@ -61,7 +62,7 @@ function second_order!(IFC2, sys::SuperCellSystem{D}, pot::PairPotential,
 
             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
             rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
-            dist_sq = sum(x -> x^2, r)
+            dist_sq = sum(x -> x^2, rᵢⱼ)
 
             if dist_sq < r_cut_sq
                 dist = norm(rᵢⱼ)

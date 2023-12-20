@@ -1,4 +1,4 @@
-export second_order
+export second_order, second_order_finite_diff_single
 
 #* this is incredibly slow
 function second_order(sys_eq::SuperCellSystem{3}, pot::Potential,

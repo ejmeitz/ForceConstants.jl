@@ -46,7 +46,7 @@ function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
 
     IFC2 = apply_tols!(IFC2, calc.tol)
 
-    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
+    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, calc.tol)
 
 end
 
@@ -132,7 +132,7 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
 
     IFC2 = apply_tols!(IFC2, calc.tol)
 
-    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, tol)
+    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, calc.tol)
 
 end
 
