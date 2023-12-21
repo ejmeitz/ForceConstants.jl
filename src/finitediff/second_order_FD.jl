@@ -1,6 +1,5 @@
 export second_order, second_order_finite_diff_single
 
-#* this is incredibly slow
 function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
     calc::FiniteDiffCalculator) where D
 
@@ -32,15 +31,15 @@ function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
         end 
     end
 
-    Threads.@threads for i in range(1, N_atoms) # index of block matrix
-        for α in range(1,D)
-            for β in range(1,D)
-                ii = D*(i-1) + α
-                jj = D*(i-1) + β # i == j because we're on diagonal
-                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
-            end
-        end
-    end
+    # Threads.@threads for i in range(1, N_atoms) # index of block matrix
+    #     for α in range(1,D)
+    #         for β in range(1,D)
+    #             ii = D*(i-1) + α
+    #             jj = D*(i-1) + β # i == j because we're on diagonal
+    #             IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
+    #         end
+    #     end
+    # end
 
 
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, 0.0)
@@ -54,8 +53,8 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
    N_atoms = n_atoms(sys_eq)
 
 
-   @assert length(atom_idxs) == 2
-   @assert length(cartesian_idxs) == 2
+#    @assert length(atom_idxs) == 2
+#    @assert length(cartesian_idxs) == 2
    @assert all(atom_idxs .<= N_atoms) && all(atom_idxs .>= 1) "Atom indexes out of range, must be in 1:$(N_atoms)"
    @assert all(cartesian_idxs .<= 3) && all(cartesian_idxs .>= 1) "Cartesian indices must be 1, 2, or 3"
 
@@ -86,7 +85,7 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
         end
 
         return (1/(h^2))*(energies[1] - 2*energies[2] + energies[3])
-    else #& should this just be for atom_idxs[1] != atom_idxs[2]???
+    else
         energies = zeros(4)*energy_unit(pot)
         combos = [[h,h],[-h,-h],[h,-h],[-h,h]]
 

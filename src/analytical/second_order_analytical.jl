@@ -55,6 +55,7 @@ function second_order!(IFC2, sys::SuperCellSystem{D}, pot::PairPotential,
 
     N_atoms = n_atoms(sys)
     @assert size(IFC2) == (D*N_atoms,D*N_atoms)
+    r_cut_sq = calc.r_cut*calc.r_cut
 
     #Loop block matricies above diagonal (not including diagonal)
     for i in range(1,N_atoms)

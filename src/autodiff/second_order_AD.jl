@@ -73,19 +73,19 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
         r_arr = Vector{Float64}(undef, D*D)
         for B in range(1, N_atoms)
             if A != B
-                #Two body term
                 r_ab .= sys.atoms.position[A] .- sys.atoms.position[B]
                 nearest_mirror!(r_ab, sys.box_sizes_SC)
                 dist_ab_sq = sum(x -> x^2, r_ab)
 
                 if dist_ab_sq < r_cut_sq
+                    #Two body term only contributes to ij and ji blocks
                     if A < B
-                        block .= H2_exec(ustrip.(r_ab))
-                        IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(B-1) + 1 : D*(B-1) + D] .-= block
-                        IFC2[D*(B-1) + 1 : D*(B-1) + D, D*(A-1) + 1 : D*(A-1) + D] .-= block
+                        block .= -H2_exec(ustrip.(r_ab))
+                        IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(B-1) + 1 : D*(B-1) + D] .+= block
+                        IFC2[D*(B-1) + 1 : D*(B-1) + D, D*(A-1) + 1 : D*(A-1) + D] .+= block
                     end
 
-                    #Three body terms:
+                    #Three body terms between atoms A,B,k
                     for k in range(B+1, N_atoms)
                         if A != k
                             rᵢₖ .= sys.atoms.position[A] .- sys.atoms.position[k]
@@ -96,19 +96,20 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                                 #ϕ₃(rᵢⱼ, rᵢₖ) contributes to ∂ri∂rj, ∂ri∂rk, ∂rj∂rk (and the symmetric versions)
                                 nearest_j .= sys.atoms.position[A] .- r_ab
                                 nearest_k .= sys.atoms.position[A] .- rᵢₖ
+                                # dist_jk_sq = sum(x -> x^2, nearest_j .- nearest_k)
                  
-                                #ij contribution
+                                #contribution to ij derivative block
                                 r_arr .= ustrip.([sys.atoms.position[A]; nearest_j; nearest_k])
                                 block .= H3_exec_ij(r_arr)
-                                IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(B-1) + 1 : D*(B-1) + D] .+= block
+                                IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(B-1) + 1 : D*(B-1) + D] .+= block 
                                 IFC2[D*(B-1) + 1 : D*(B-1) + D, D*(A-1) + 1 : D*(A-1) + D] .+= block
                                 
-                                #ik contribution
+                                #contribution to ik derivative block
                                 block .= H3_exec_ik(r_arr)
                                 IFC2[D*(A-1) + 1 : D*(A-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
                                 IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(A-1) + 1 : D*(A-1) + D] .+= block
                                  
-                                #jk contribution
+                                #contribution to jk derivative block
                                 block .= H3_exec_jk(r_arr)
                                 IFC2[D*(B-1) + 1 : D*(B-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
                                 IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(B-1) + 1 : D*(B-1) + D] .+= block
