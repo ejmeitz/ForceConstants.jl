@@ -6,7 +6,7 @@ function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
     N_atoms = n_atoms(sys_eq)
     IFC2 = zeros(D*N_atoms, D*N_atoms)
 
-    r_cut_sq = calc.r_cut^2
+    r_cut_sq = calc.r_cut*calc.r_cut
 
     Threads.@threads for i in range(1, N_atoms)
         rᵢⱼ = similar(sys_eq.atoms.position[1])
@@ -15,14 +15,15 @@ function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
             rᵢⱼ .= sys_eq.atoms.position[i] .- sys_eq.atoms.position[j]
             nearest_mirror!(rᵢⱼ, sys_eq.box_sizes_SC)
             dist_ij_sq = sum(x -> x^2, rᵢⱼ)
+            # dist_ij_sq = 0.0u"Å^2"
 
             if dist_ij_sq < r_cut_sq
                 for α in range(1,D)
+                    ii = D*(i-1) + α
                     for β in range(1,D)
-                        ii = D*(i-1) + α
                         jj = D*(j-1) + β
                         IFC2[ii,jj] = ustrip(second_order_finite_diff_single(sys_eq, pot, [i,j], [α,β],
-                            calc.r_cut, calc.h))
+                            calc.r_cut, calc.h)) #* remove alloc [i,j]
                         IFC2[jj,ii] = IFC2[ii,jj]
                     end
                 end
@@ -31,15 +32,15 @@ function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
         end 
     end
 
-    # Threads.@threads for i in range(1, N_atoms) # index of block matrix
-    #     for α in range(1,D)
-    #         for β in range(1,D)
-    #             ii = D*(i-1) + α
-    #             jj = D*(i-1) + β # i == j because we're on diagonal
-    #             IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
-    #         end
-    #     end
-    # end
+    Threads.@threads for i in range(1, N_atoms) # index of block matrix
+        for α in range(1,D)
+            for β in range(1,D)
+                ii = D*(i-1) + α
+                jj = D*(i-1) + β # i == j because we're on diagonal
+                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
+            end
+        end
+    end
 
 
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, 0.0)
@@ -55,9 +56,11 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
 
 #    @assert length(atom_idxs) == 2
 #    @assert length(cartesian_idxs) == 2
-   @assert all(atom_idxs .<= N_atoms) && all(atom_idxs .>= 1) "Atom indexes out of range, must be in 1:$(N_atoms)"
-   @assert all(cartesian_idxs .<= 3) && all(cartesian_idxs .>= 1) "Cartesian indices must be 1, 2, or 3"
+#    @assert all(atom_idxs .<= N_atoms) && all(atom_idxs .>= 1) "Atom indexes out of range, must be in 1:$(N_atoms)"
+#    @assert all(cartesian_idxs .<= 3) && all(cartesian_idxs .>= 1) "Cartesian indices must be 1, 2, or 3"
+   @assert atom_idxs[1] != atom_idxs[2] "Self terms should be calculated with ASR"
 
+   #* this is a full copy of system positions
    posns = positions(sys_eq)
 
 
@@ -69,38 +72,37 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
 #    return - (ΔFᵦ - Fᵦ₀)/h 
 
 
+    # if atom_idxs[1] == atom_idxs[2] && cartesian_idxs[1] == cartesian_idxs[2]
+    #     energies = zeros(3)*energy_unit(pot)
+    #     combos = [h,0.0*length_unit(pot),-h]
 
-    if atom_idxs[1] == atom_idxs[2] && cartesian_idxs[1] == cartesian_idxs[2]
-        energies = zeros(3)*energy_unit(pot)
-        combos = [h,0.0*length_unit(pot),-h]
+    #     for (c,combo) in enumerate(combos)
+    #         posns[atom_idxs[1]][cartesian_idxs[1]] += combo
+    #         # posns[atom_idxs[1]][cartesian_idxs[2]] += combo
 
-        for (c,combo) in enumerate(combos)
-            posns[atom_idxs[1]][cartesian_idxs[1]] += combo
-            # posns[atom_idxs[1]][cartesian_idxs[2]] += combo
+    #         energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
 
-            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
+    #         posns[atom_idxs[1]][cartesian_idxs[1]] -= combo
+    #         # posns[atom_idxs[1]][cartesian_idxs[2]] -= combo
+    #     end
 
-            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo
-            # posns[atom_idxs[1]][cartesian_idxs[2]] -= combo
-        end
+    #     return (1/(h^2))*(energies[1] - 2*energies[2] + energies[3])
+    # else
+    energies = zeros(4)*energy_unit(pot)
+    combos = [[h,h],[-h,-h],[h,-h],[-h,h]]
 
-        return (1/(h^2))*(energies[1] - 2*energies[2] + energies[3])
-    else
-        energies = zeros(4)*energy_unit(pot)
-        combos = [[h,h],[-h,-h],[h,-h],[-h,h]]
+    for (c,combo) in enumerate(combos)
 
-        for (c,combo) in enumerate(combos)
+        posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
+        posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
 
-            posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
-            posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
+        energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
 
-            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
-
-            #Un-modify
-            posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
-            posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
-        end
-
-        return (1/(4*h^2))*(energies[1] + energies[2] - energies[3] - energies[4])
+        #Un-modify
+        posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
+        posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
     end
+
+    return (1/(4*h^2))*(energies[1] + energies[2] - energies[3] - energies[4])
+    # end
 end
