@@ -25,6 +25,7 @@ include("interactions/LennardJones.jl")
 include("interactions/SW.jl")
 
 include("helper_funcs.jl")
+include("asr.jl")
 
 include("./autodiff/autodiff_helper.jl")
 include("./autodiff/second_order_AD.jl")
