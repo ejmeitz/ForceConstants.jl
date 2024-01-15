@@ -84,11 +84,11 @@ function three_body_third_derivs(pot::StillingerWeberSilicon, D)
     H3_symbolic_ijj = Array{FastDifferentiation.Node}(undef, D, D, D)
     H3_symbolic_ijk = Array{FastDifferentiation.Node}(undef, D, D, D)
     H3_symbolic_ikk = Array{FastDifferentiation.Node}(undef, D, D, D)
-    # H3_symbolic_jjk = Array{FastDifferentiation.Node}(undef, D, D, D)
-    # H3_symbolic_jkk = Array{FastDifferentiation.Node}(undef, D, D, D)
+    H3_symbolic_jjk = Array{FastDifferentiation.Node}(undef, D, D, D)
+    H3_symbolic_jkk = Array{FastDifferentiation.Node}(undef, D, D, D)
        
 
-    Threads.@threads for a in range(1,D)
+    for a in range(1,D)
         for b in range(a,D)
             for c in range(b,D)
                 H3_symbolic_iij[a,b,c] = derivative([pot3_symbolic], r_i_vars[a], r_i_vars[b], r_j_vars[c])[1]
@@ -101,7 +101,7 @@ function three_body_third_derivs(pot::StillingerWeberSilicon, D)
         end
     end
 
-    Threads.@threads for a in range(1,D)
+    for a in range(1,D)
         for b in range(a,D)
             for c in range(b,D)
                 H3_symbolic_iik[a,b,c] = derivative([pot3_symbolic], r_i_vars[a], r_i_vars[b], r_k_vars[c])[1]
@@ -114,7 +114,7 @@ function three_body_third_derivs(pot::StillingerWeberSilicon, D)
         end
     end
 
-    Threads.@threads for a in range(1,D)
+    for a in range(1,D)
         for b in range(a,D)
             for c in range(b,D)
                 H3_symbolic_ijj[a,b,c] = derivative([pot3_symbolic], r_i_vars[a], r_j_vars[b], r_j_vars[c])[1]
@@ -127,7 +127,7 @@ function three_body_third_derivs(pot::StillingerWeberSilicon, D)
         end
     end
 
-    Threads.@threads for a in range(1,D)
+    for a in range(1,D)
         for b in range(a,D)
             for c in range(b,D)
                 H3_symbolic_ijk[a,b,c] = derivative([pot3_symbolic], r_i_vars[a], r_j_vars[b], r_k_vars[c])[1]
@@ -140,7 +140,7 @@ function three_body_third_derivs(pot::StillingerWeberSilicon, D)
         end
     end
 
-    Threads.@threads for a in range(1,D)
+    for a in range(1,D)
         for b in range(a,D)
             for c in range(b,D)
                 H3_symbolic_ikk[a,b,c] = derivative([pot3_symbolic], r_i_vars[a], r_k_vars[b], r_k_vars[c])[1]
@@ -153,16 +153,60 @@ function three_body_third_derivs(pot::StillingerWeberSilicon, D)
         end
     end
 
+    for a in range(1,D)
+        for b in range(a,D)
+            for c in range(b,D)
+                H3_symbolic_jjk[a,b,c] = derivative([pot3_symbolic], r_j_vars[a], r_j_vars[b], r_k_vars[c])[1]
+                H3_symbolic_jjk[a,c,b] = H3_symbolic_jjk[a,b,c]
+                H3_symbolic_jjk[b,c,a] = H3_symbolic_jjk[a,b,c]
+                H3_symbolic_jjk[b,a,c] = H3_symbolic_jjk[a,b,c]
+                H3_symbolic_jjk[c,a,b] = H3_symbolic_jjk[a,b,c]
+                H3_symbolic_jjk[c,b,a] = H3_symbolic_jjk[a,b,c]
+            end
+        end
+    end
+
+    for a in range(1,D)
+        for b in range(a,D)
+            for c in range(b,D)
+                H3_symbolic_jkk[a,b,c] = derivative([pot3_symbolic], r_j_vars[a], r_k_vars[b], r_k_vars[c])[1]
+                H3_symbolic_jkk[a,c,b] = H3_symbolic_jkk[a,b,c]
+                H3_symbolic_jkk[b,c,a] = H3_symbolic_jkk[a,b,c]
+                H3_symbolic_jkk[b,a,c] = H3_symbolic_jkk[a,b,c]
+                H3_symbolic_jkk[c,a,b] = H3_symbolic_jkk[a,b,c]
+                H3_symbolic_jkk[c,b,a] = H3_symbolic_jkk[a,b,c]
+            end
+        end
+    end
+
 
     H3_exec_iij = make_function(H3_symbolic_iij, [r_i_vars; r_j_vars; r_k_vars])
     H3_exec_iik = make_function(H3_symbolic_iik, [r_i_vars; r_j_vars; r_k_vars])
     H3_exec_ijj = make_function(H3_symbolic_ijj, [r_i_vars; r_j_vars; r_k_vars])
     H3_exec_ijk = make_function(H3_symbolic_ijk, [r_i_vars; r_j_vars; r_k_vars])
     H3_exec_ikk = make_function(H3_symbolic_ikk, [r_i_vars; r_j_vars; r_k_vars])
-    # H3_exec_jjk = make_function(H3_symbolic_jjk, [r_i_vars; r_j_vars; r_k_vars])
-    # H3_exec_jkk = make_function(H3_symbolic_jkk, [r_i_vars; r_j_vars; r_k_vars])
+    H3_exec_jjk = make_function(H3_symbolic_jjk, [r_i_vars; r_j_vars; r_k_vars])
+    H3_exec_jkk = make_function(H3_symbolic_jkk, [r_i_vars; r_j_vars; r_k_vars])
 
     return H2_exec, H3_exec_iij, H3_exec_iik,
-             H3_exec_ijj, H3_exec_ijk, H3_exec_ikk
+             H3_exec_ijj, H3_exec_ijk, H3_exec_ikk, H3_exec_jjk, H3_exec_jkk
 end
 
+function three_body_third_derivs_symbolic(pot::StillingerWeberSilicon, D)
+
+    @variables ri[1:D] rj[1:D] rk[1:D]
+
+    r_ij = ri - rj
+    r_ik = ri - rk
+
+    dist_ij = norm(r_ij)
+    dist_ik = norm(r_ik)
+
+
+    pot2_symbolic = pair_potential_nounits(pot, dist_ij)
+    H_symbolic = hessian(pot2_symbolic, r_ij)
+
+    H2_exec = reshape(jacobian(H_symbolic, r_ij),(D,D,D))
+
+
+end

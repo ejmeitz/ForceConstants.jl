@@ -5,14 +5,14 @@ using SimpleCrystals
 using StructArrays
 using Unitful
 using StaticArrays
-using DataFrames
+using DataFrames #& only import whats needed?
 using DelimitedFiles
 using LinearAlgebra
 using Combinatorics
 using JLD2
 using TensorOperations
 using Combinatorics
-using LoopVectorization
+using LoopVectorization #& can remove I think
 using FastDifferentiation
 
 using cuTENSOR

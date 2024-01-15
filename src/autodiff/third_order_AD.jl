@@ -77,7 +77,8 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
      @assert calc.r_cut <= pot.r_cut "For SW silicon force constant 
         cutoff must be less than potential cutoff"
 
-     H2_exec, H3_exec_iij, H3_exec_iik, H3_exec_ijj, H3_exec_ijk, H3_exec_ikk = 
+     H2_exec, H3_exec_iij, H3_exec_iik, H3_exec_ijj,
+      H3_exec_ijk, H3_exec_ikk, H3_exec_jjk, H3_exec_jkk = 
         three_body_third_derivs(pot, D)
    
     N_atoms = n_atoms(sys)
@@ -141,6 +142,12 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
 
                                 block .= H3_exec_ikk(r_arr)
                                 set_third_order_terms!(IFC3, k_rng, i_rng, block)
+
+                                # block .= H3_exec_jjk(r_arr)
+                                # set_third_order_terms!(IFC3, j_rng, k_rng, block)
+
+                                # block .= H3_exec_jkk(r_arr)
+                                # set_third_order_terms!(IFC3, k_rng, j_rng, block)
                             end
                         end
                     end
