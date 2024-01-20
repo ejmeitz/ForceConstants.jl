@@ -3,6 +3,8 @@ export second_order, second_order_finite_diff_single
 function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
     calc::FiniteDiffCalculator) where D
 
+    @assert calc.r_cut < pot.r_cut "Calculator r_cut must be less than potential r_cut"
+
     N_atoms = n_atoms(sys_eq)
     IFC2 = zeros(D*N_atoms, D*N_atoms)
 
@@ -10,6 +12,9 @@ function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
 
     Threads.@threads for i in range(1, N_atoms)
         rᵢⱼ = similar(sys_eq.atoms.position[1])
+        #Give each thread a unique copy of positions
+        #* has to be a more efficient way to make this thread safe
+        posns = deepcopy(positions(sys_eq))
         for j in range(i+1, N_atoms)
 
             rᵢⱼ .= sys_eq.atoms.position[i] .- sys_eq.atoms.position[j]
@@ -23,7 +28,7 @@ function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
                     for β in range(1,D)
                         jj = D*(j-1) + β
                         IFC2[ii,jj] = ustrip(second_order_finite_diff_single(sys_eq, pot, [i,j], [α,β],
-                            calc.r_cut, calc.h)) #* remove alloc [i,j]
+                            calc.r_cut, calc.h, posns)) #* remove alloc [i,j]
                         IFC2[jj,ii] = IFC2[ii,jj]
                     end
                 end
@@ -48,7 +53,7 @@ function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
 end
 
 function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potential, atom_idxs,
-     cartesian_idxs, r_cut, h)
+     cartesian_idxs, r_cut, h, posns)
 
    h = uconvert(length_unit(pot), h)
    N_atoms = n_atoms(sys_eq)
@@ -59,10 +64,6 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
 #    @assert all(atom_idxs .<= N_atoms) && all(atom_idxs .>= 1) "Atom indexes out of range, must be in 1:$(N_atoms)"
 #    @assert all(cartesian_idxs .<= 3) && all(cartesian_idxs .>= 1) "Cartesian indices must be 1, 2, or 3"
    @assert atom_idxs[1] != atom_idxs[2] "Self terms should be calculated with ASR"
-
-   #* this is a full copy of system positions
-   posns = positions(sys_eq)
-
 
 #    force_unit = energy_unit(pot) / length_unit(pot)
 #    Fᵦ₀ = force_loop_j(pot, posns, force_unit, r_cut, sys_eq.box_sizes_SC, N_atoms, atom_idxs[2], cartesian_idxs[2])

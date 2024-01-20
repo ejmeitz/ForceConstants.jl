@@ -77,7 +77,7 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
      @assert calc.r_cut <= pot.r_cut "For SW silicon force constant 
         cutoff must be less than potential cutoff"
 
-     H2_exec, H3_exec_iij, H3_exec_iik, H3_exec_ijj, H3_exec_ijk, H3_exec_ikk = 
+     H3_exec_ij, H3_exec_iij, H3_exec_iik, H3_exec_ijj, H3_exec_ijk, H3_exec_ikk = 
         three_body_third_derivs(pot, D)
    
     N_atoms = n_atoms(sys)
@@ -100,21 +100,21 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                 #Two body term
                 rᵢⱼ .= sys.atoms.position[i] .- sys.atoms.position[j]
                 nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
-                dist_ab_sq = sum(x -> x^2, rᵢⱼ)
+                dist_ij_sq = sum(x -> x^2, rᵢⱼ)
 
-                if dist_ab_sq < r_cut_sq
+                if dist_ij_sq < r_cut_sq
 
                     if j > i
-                        block .= -H2_exec(ustrip.(rᵢⱼ))
                         #iij
+                        block .= -H3_exec_ij(ustrip.(rᵢⱼ))
                         set_third_order_terms!(IFC3, i_rng, j_rng, block)
                         
                         #ijj
-                        block .= H2_exec(ustrip.(rᵢⱼ))
+                        block .= H3_exec_ij(ustrip.(rᵢⱼ))
                         set_third_order_terms!(IFC3, j_rng, i_rng, block)
                     end
 
-                    #Three body terms:
+                    # #Three body terms:
                     for k in range(j+1, N_atoms)
                         if i != k
                             k_rng = D*(k-1) + 1 : D*(k-1) + D

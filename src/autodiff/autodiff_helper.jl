@@ -166,3 +166,22 @@ function three_body_third_derivs(pot::StillingerWeberSilicon, D)
              H3_exec_ijj, H3_exec_ijk, H3_exec_ikk
 end
 
+function save_derivative(f::FastDifferentiation.Node,
+     vars::Vector{FastDifferentiation.Node}, base_path::String,
+     filename::String, deriv_name::String)
+
+    expr = FastDifferentiation.make_Expr([f], vars, false, true)
+    @assert endswith(filename, ".jld2") "Incorrect file extension, must be .jld2"
+
+    jldopen(joinpath(base_path, filename) , "a+") do file
+        file[deriv_name] = expr
+    end
+
+end
+
+function load_derivative(filename::String, deriv_name::String)
+    expr = load(filename, deriv_name)
+    return eval(expr)
+end 
+
+

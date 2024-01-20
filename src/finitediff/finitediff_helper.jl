@@ -39,8 +39,6 @@ function energy_loop(pot::StillingerWeberSilicon, posns, box_sizes, N_atoms, r_c
 
                     if i < j
                         U_total += pair_potential(pot, sqrt(dist_ij_sq))
-                        # forces[i,:] += 0
-                        # forces[j,:] -= 0
                     end
 
                     for k in range(j+1, N_atoms)

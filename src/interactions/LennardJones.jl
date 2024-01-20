@@ -1,4 +1,4 @@
-export LJ, energy_unit, length_unit
+export LJ, energy_unit, length_unit, potential, force
 
 #################
 # Lennard Jones #

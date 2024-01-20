@@ -1,6 +1,5 @@
 # export check_ifc
 
-# #& CURRENTLY DIFFERS by -1 FROM MINE
 # function check_ifc(sys::SuperCellSystem{D}, ifc::DenseForceConstants{O}, pot::PairPotential, n_points;
 #     calc::FiniteDiffCalculator) where {D,O}
 
