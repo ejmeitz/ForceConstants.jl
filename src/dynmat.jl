@@ -61,6 +61,35 @@ function dynamical_matrix!(dynmat, sys::SuperCellSystem{D}, pot::Potential,
     return dynmat
 end
 
+"""
+Builds new dynamical matrix from existing second order force constants
+"""
+function dynamical_matrix(sys::SuperCellSystem{D}, Φ::SecondOrderForceConstants) where {D}
+
+    dynmat = similar(Φ.values)
+    dynmat .= Φ.values
+
+    N_atoms = n_atoms(sys)
+
+    #Mass Weight
+    Threads.@threads for i in range(1, N_atoms)
+        for j in range(1, N_atoms)
+            for α in range(1,D)
+                for β in range(1,D)
+                    ii = D*(i-1) + α
+                    jj = D*(j-1) + β
+                    dynmat[ii,jj] /=  ustrip(sqrt(mass(sys,i)*mass(sys,j)))
+                end
+            end
+        end
+    end
+
+    #Add final units to dynamical matrix
+    dynmat_unit = Φ.units / unit(mass(sys,1))
+
+    return DenseForceConstants(dynmat, dynmat_unit, 0.0)
+end
+
 ### Get Modes ###
 """
 get_modes(dynmat::SecondOrderMatrix, num_rigid_translation = 3)
