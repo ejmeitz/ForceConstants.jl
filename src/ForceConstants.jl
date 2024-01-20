@@ -5,14 +5,14 @@ using SimpleCrystals
 using StructArrays
 using Unitful
 using StaticArrays
-using DataFrames
+using DataFrames #& only import whats needed?
 using DelimitedFiles
 using LinearAlgebra
 using Combinatorics
 using JLD2
 using TensorOperations
 using Combinatorics
-using LoopVectorization
+using LoopVectorization #& can remove I think
 using FastDifferentiation
 
 using cuTENSOR
@@ -42,6 +42,7 @@ include("./analytical/second_order_analytical.jl")
 include("./analytical/third_order_analytical.jl")
 include("./analytical/fourth_order_analytical.jl")
 
+include("gruneisen.jl")
 include("dynmat.jl")
 include("mcc.jl")
 include("io.jl") 

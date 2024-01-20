@@ -52,12 +52,13 @@ end
 atomkeys(sys::SuperCellSystem) = keys(sys.atoms[1])
 hasatomkey(sys::SuperCellSystem, x::Symbol) = x ∈ atomkeys(sys)
 masses(sys::SuperCellSystem) = sys.atoms.mass
-mass(sys::SuperCellSystem, i::Int) = sys.atoms.mass[i]
+mass(sys::SuperCellSystem, i::Integer) = sys.atoms.mass[i]
 positions(sys::SuperCellSystem) = sys.atoms.position
-position(sys::SuperCellSystem, i::Int) = sys.atoms.position[i]
-positions_1D(sys::SuperCellSystem) = vcat(positions(sys))
+position(sys::SuperCellSystem, i::Integer) = sys.atoms.position[i]
+position(sys::SuperCellSystem, i::Integer, α::Integer) = (sys.atoms.position[i])[α]
+positions_1D(sys::SuperCellSystem) = reduce(vcat, positions(sys))
 charges(sys::SuperCellSystem) = hasatomkey(sys, :charge) ? sys.atoms.charge : throw(ArgumentError("Charge is not a key"))
-charge(sys::SuperCellSystem, i::Int) =  hasatomkey(sys, :charge) ? sys.atoms.charge[i] : throw(ArgumentError("Charge is not a key"))
+charge(sys::SuperCellSystem, i::Integer) =  hasatomkey(sys, :charge) ? sys.atoms.charge[i] : throw(ArgumentError("Charge is not a key"))
 n_atoms(sys::SuperCellSystem) = length(sys.atoms)
 #######################################################
 
