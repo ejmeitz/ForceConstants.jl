@@ -60,6 +60,7 @@ positions_1D(sys::SuperCellSystem) = reduce(vcat, positions(sys))
 charges(sys::SuperCellSystem) = hasatomkey(sys, :charge) ? sys.atoms.charge : throw(ArgumentError("Charge is not a key"))
 charge(sys::SuperCellSystem, i::Integer) =  hasatomkey(sys, :charge) ? sys.atoms.charge[i] : throw(ArgumentError("Charge is not a key"))
 n_atoms(sys::SuperCellSystem) = length(sys.atoms)
+volume(sys::SuperCellSystem) = prod(sys.box_sizes_SC)
 #######################################################
 
 abstract type Potential end
@@ -81,7 +82,7 @@ Base.size(fc::DenseForceConstants) = size(fc.values)
 Base.getindex(fc::DenseForceConstants{O}, idxs::Vararg{Integer, O}) where O = fc.values[idxs...]
 Base.getindex(fc::DenseForceConstants{O}, idxs::Vararg{UnitRange, O}) where O = fc.values[idxs...]
 Base.getindex(fc::DenseForceConstants{O}, idxs::CartesianIndex{O}) where O = fc.values[idxs]
-
+Base.similar(fc::DenseForceConstants) = similar(fc.values)
 n_modes(fc::DenseForceConstants) = size(fc)[1]
 
 #type aliases

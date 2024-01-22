@@ -1,4 +1,4 @@
-export energy_loop, force_loop, energy_loop2
+export energy_loop, force_loop, energy_loop2, freqs_to_THz
 
 #Kronicker Delta
 δₖ(x,y) = ==(x,y)
@@ -26,6 +26,18 @@ function apply_tols!(arr, tol)
     return arr
 end
 
+
+function freqs_to_THz(freqs, unit_system::Symbol)
+
+    if unit_system == :REAL
+        return freqs.*sqrt(418.4)./(2*pi)
+    elseif unit_system == :METAL
+        return freqs.*sqrt(9.64897e3)./(2*pi)
+    else
+        error("Invalid unit system")
+    end
+
+end
 
 
 # """

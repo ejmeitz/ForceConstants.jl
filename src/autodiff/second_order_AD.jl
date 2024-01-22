@@ -3,7 +3,7 @@ export second_order
 function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
       calc::AutoDiffCalculator) where D
 
-    @assert calc.r_cut < pot.r_cut "Calculator r_cut must be less than potential r_cut"  
+    @assert calc.r_cut <= pot.r_cut "Calculator r_cut must be less than potential r_cut"  
 
     vars = make_variables(:r, D)
     r_norm = sqrt(sum(x -> x^2, vars))
