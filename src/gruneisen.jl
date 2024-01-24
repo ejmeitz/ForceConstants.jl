@@ -19,10 +19,13 @@ function gruneisen_parameter(sys::SuperCellSystem{D},
     mass_norm = calculate_mass_normalization(sys)
     r_flat = ustrip.(positions_1D(sys))
     # r_bar = calculate_r_bar(sys, Φ, e_vecs, freqs_sq, mass_norm, r_flat)
+
     # r_bar_flat = reduce(vcat, r_bar)
-    # print(r_bar_flat)
+    # println("R Bar Range: $(minimum(r_bar_flat)) to $(maximum(r_bar_flat))")
+
     r_bar_flat = zeros(D*N_atoms)
     r_bar_flat .+= r_flat
+
     
     gamma = zeros(N_modes)
 
@@ -46,7 +49,7 @@ function gruneisen_parameter(sys::SuperCellSystem{D},
                     end
                     # gamma[n] += tmp*mass_norm[i,j]
                 end
-            end
+            end 
         end
     end
     gamma ./= (-6 .*freqs_sq)
@@ -54,7 +57,7 @@ function gruneisen_parameter(sys::SuperCellSystem{D},
     #Remove NaNs
     gamma[freqs_sq .== 0.0] .= 0.0
     return gamma
-    # nothing
+
 
 end
 
@@ -79,29 +82,20 @@ function calculate_r_bar(sys::SuperCellSystem{D}, Φ, e_vecs, freqs_sq, mass_nor
     N_modes = size(e_vecs)[1]
     r_bar = zeros(N_atoms,D)
     
-    
     Threads.@threads for i in range(1,N_atoms)
         for α in range(1,D)
-            ii = D*(i-1) + α
+            iα = D*(i-1) + α
             for n in range(1,N_modes)
                 if freqs_sq[n] != 0.0
                     tmp = 0.0
-                    for j in range(1,N_atoms)
-                        for k in range(1,N_atoms)
-                            for β in range(1,D)
-                                jj = D*(j-1) + β
-                                for γ in range(1,D)
-                                    kk = D*(k-1) + γ
-                                    tmp += Φ[jj,kk]*e_vecs[jj,n]*r_flat[kk]*mass_norm[i,j]
-                                    # r_bar[i,α] += Φ[jj,kk]*e_vecs[jj,n]*r_flat[kk]*mass_norm[i,j]*e_vecs[ii,n]/freqs_sq[n]
-                                end
-                            end
+                    for jβ in range(1,N_modes)
+                        j_idx_1D = floor(Int64,(jβ-1)/D) + 1
+                        for kγ in range(1,N_modes)
+                            tmp += Φ[jβ,kγ]*e_vecs[jβ,n]*r_flat[kγ]*mass_norm[i,j_idx_1D]
+                            # r_bar[i,α] += Φ[jβ,kγ]*e_vecs[jβ,n]*r_flat[kγ]*mass_norm[i,j_idx_1D]*e_vecs[iα,n]/freqs_sq[n]
                         end
                     end
-                    if tmp > 1e-10
-                        println(tmp)
-                    end
-                    r_bar[i,α] += tmp*conj(e_vecs[ii,n])/freqs_sq[n]
+                    r_bar[i,α] += tmp*conj(e_vecs[iα,n])/freqs_sq[n]
                 end
             end
         end
@@ -158,4 +152,38 @@ function gruneisen_parameter(systems::Vector{<:SuperCellSystem{D}},
     gamma[base_freqs .== 0.0] .= 0.0
 
     return gamma
+end
+
+function make_grunesien_test_systems(dV, n_sys, n_uc, calc, pot)
+
+    a0 = 5.43u"Å"
+    base_crys = Diamond(a0, :Si, SVector(n_uc,n_uc,n_uc))
+    base_sys = SuperCellSystem(base_crys)
+    V₀ = volume(base_sys)
+    da = (cbrt(V₀ + dV) - n_uc*a0)/n_uc
+
+    dynmat = dynamical_matrix(base_sys, pot, calc).values
+    freqs_sq, _ = get_modes(dynmat)
+    base_freqs = sqrt.(freqs_sq)
+
+    if n_sys == 2
+        crys1 = Diamond(a0 + da, :Si, SVector(n_uc,n_uc,n_uc))
+        crys2 = Diamond(a0 - da, :Si, SVector(n_uc,n_uc,n_uc))
+        sys1 = SuperCellSystem(crys1)
+        sys2 = SuperCellSystem(crys2)
+
+        return [sys1, sys2], base_sys, V₀
+    elseif n_sys == 4
+        crys1 = Diamond(a0 + 2*da, :Si, SVector(n_uc,n_uc,n_uc))
+        crys2 = Diamond(a0 + da, :Si, SVector(n_uc,n_uc,n_uc))
+        crys3 = Diamond(a0 - da, :Si, SVector(n_uc,n_uc,n_uc))
+        crys4 = Diamond(a0 - 2*da, :Si, SVector(n_uc,n_uc,n_uc))
+        sys1 = SuperCellSystem(crys1)
+        sys2 = SuperCellSystem(crys2)
+        sys3 = SuperCellSystem(crys3)
+        sys4 = SuperCellSystem(crys4)
+
+        return [sys1, sys2, sys3, sys4], base_freqs, V₀
+    end
+
 end
