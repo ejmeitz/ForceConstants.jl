@@ -78,9 +78,11 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
         cutoff must be less than potential cutoff"
 
 
-     H3_exec_ij, H3_exec_iij, H3_exec_iik, H3_exec_ijj, H3_exec_ijk, H3_exec_ikk = 
+    H3_exec_ij, H3_exec_iij, H3_exec_iik, H3_exec_ijj, H3_exec_ijk,
+     H3_exec_ikk, H3_exec_jjk, H3_exec_jkk = 
         three_body_third_derivs(pot, D)
-   
+
+    
     N_atoms = n_atoms(sys)
     IFC3 = zeros(D*N_atoms, D*N_atoms, D*N_atoms)
     r_cut_sq = calc.r_cut*calc.r_cut  
@@ -105,14 +107,13 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
 
                 if dist_ij_sq < r_cut_sq
 
-                    if j > i
+                    if j > i #two body derivatives wrt r_ija, r_ijb, r_ijk
+                        block .= -H3_exec_ij(ustrip.(rᵢⱼ)) 
+
                         #iij
-                        block .= -H3_exec_ij(ustrip.(rᵢⱼ))
                         set_third_order_terms!(IFC3, i_rng, j_rng, block)
-                        
                         #ijj
-                        block .= H3_exec_ij(ustrip.(rᵢⱼ))
-                        set_third_order_terms!(IFC3, j_rng, i_rng, block)
+                        set_third_order_terms!(IFC3, j_rng, i_rng, -block)
                     end
 
                     # #Three body terms:
@@ -123,7 +124,7 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                             nearest_mirror!(rᵢₖ, sys.box_sizes_SC)
                             dist_ik_sq = sum(x -> x^2, rᵢₖ)
                             
-                            if dist_ik_sq < r_cut_sq
+                            if dist_ik_sq < r_cut_sq #three body derivatives wrt r_ia, r_ib, r_jk
                                 nearest_j .= sys.atoms.position[i] .- rᵢⱼ
                                 nearest_k .= sys.atoms.position[i] .- rᵢₖ
                                 r_arr .= ustrip.([sys.atoms.position[i]; nearest_j; nearest_k])
@@ -131,23 +132,26 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                                 block .= H3_exec_iij(r_arr)
                                 set_third_order_terms!(IFC3, i_rng, j_rng, block)
 
+                                # block .= H3_exec_ijj(r_arr)
+                                # set_third_order_terms!(IFC3, j_rng, i_rng, block)
+
+
                                 block .= H3_exec_iik(r_arr)
                                 set_third_order_terms!(IFC3, i_rng, k_rng, block)
 
-                                block .= H3_exec_ijk(r_arr)
-                                set_third_order_terms!(IFC3, i_rng, j_rng, k_rng, block)
+                                # block .= H3_exec_ikk(r_arr)
+                                # set_third_order_terms!(IFC3, k_rng, i_rng, block)
                                 
-                                block .= H3_exec_ijj(r_arr)
-                                set_third_order_terms!(IFC3, j_rng, i_rng, block)
-
-                                block .= H3_exec_ikk(r_arr)
-                                set_third_order_terms!(IFC3, k_rng, i_rng, block)
 
                                 # block .= H3_exec_jjk(r_arr)
                                 # set_third_order_terms!(IFC3, j_rng, k_rng, block)
 
                                 # block .= H3_exec_jkk(r_arr)
                                 # set_third_order_terms!(IFC3, k_rng, j_rng, block)
+
+
+                                block .= H3_exec_ijk(r_arr)
+                                set_third_order_terms!(IFC3, i_rng, j_rng, k_rng, block)
                             end
                         end
                     end

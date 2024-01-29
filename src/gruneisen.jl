@@ -1,4 +1,4 @@
-export gruneisen_parameter
+export gruneisen_parameter, calculate_r_bar2, calculate_r_bar3
 
 """
 Calculate mode Gruneisen Parameter's from second and third order force constants
@@ -9,7 +9,7 @@ function gruneisen_parameter(sys::SuperCellSystem{D},
 
     N_modes = size(Φ)[1]
     N_atoms = Int64(N_modes/D)
-
+    println("in gruneisen_parameter")
     @assert n_atoms(sys) == N_atoms "Size of force constant matrix does not match n_atoms of system"
 
     dynmat = dynamical_matrix(sys, Φ)
@@ -186,4 +186,76 @@ function make_grunesien_test_systems(dV, n_sys, n_uc, calc, pot)
         return [sys1, sys2, sys3, sys4], base_freqs, V₀
     end
 
+end
+
+
+function calculate_r_bar2(sys::SuperCellSystem{D}, Φ, e_vecs, freqs_sq,
+         mass_norm, r_flat, i, α::Integer) where {D}
+
+    N_atoms = n_atoms(sys)
+    N_modes = size(e_vecs)[1]
+    r_bar = zeros(N_atoms,D)
+    println("HERE2")
+    #Sanity checks
+    @assert 3*N_atoms == N_modes
+
+    # Threads.@threads for i in range(1,N_atoms)
+    #     for α in range(1,D)
+    ii = D*(i-1) + α
+    for n in range(1,N_modes)
+        if freqs_sq[n] != 0.0
+            tmp = 0.0
+            for j in range(1,N_atoms)
+                for k in range(1,N_atoms)
+                    for β in range(1,D)
+                        jj = D*(j-1) + β;
+                        for γ in range(1,D)
+                            kk = D*(k-1) + γ
+                            tmp += Φ[jj,kk]*e_vecs[jj,n]*r_flat[kk]*mass_norm[i,j]
+                        end
+                    end
+                end
+            end
+            r_bar[i,α] += tmp*(conj(e_vecs[ii,n])/freqs_sq[n])
+        end
+    end
+    @info "$(-r_bar[i,α])"
+    #     end
+    # end
+
+    r_bar .*= -1
+
+    return nothing
+end
+
+function calculate_r_bar3(sys::SuperCellSystem{D}, Φ, e_vecs, freqs_sq, mass_norm,
+     r_flat, i, α::Integer) where {D}
+    N_atoms = n_atoms(sys)
+    N_modes = size(e_vecs)[1]
+    r_bar = zeros(N_atoms,D)
+    println("HERE")
+
+    #Sanity checks
+    @assert 3*N_atoms == N_modes
+    
+    ii = D*(i-1) + α
+    for n in range(1,N_modes)
+        if freqs_sq[n] != 0.0
+            for j in range(1,N_atoms)
+                for k in range(1,N_atoms)
+                    for β in range(1,D)
+                        for γ in range(1,D)
+                            jj = D*(j-1) + β; kk = D*(k-1) + γ
+                            r_bar[i,α] += Φ[jj,kk]*e_vecs[jj,n]*r_flat[kk]*mass_norm[i,j]*conj(e_vecs[ii,n])/freqs_sq[n]
+                        end
+                    end
+                end
+            end
+        end
+    end
+    @info "$(-r_bar[i,α])"
+
+    r_bar .*= -1
+
+    return nothing
 end
