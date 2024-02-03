@@ -68,10 +68,9 @@ end
 
         block_size = 32
         F3 ./= sqrt(m^3)
-        K3_full = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi))
-        K3_blocked = mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi), block_size)
 
-        max_idx = argmax(K3_actual)
+        K3_full = Array(mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi)))
+        K3_blocked = Array(mcc3(CuArray{Float32}(F3), CuArray{Float32}(phi), block_size))
 
         @test isapprox(K3_actual, K3_full, atol = 1e-6)
         @test isapprox(K3_actual, K3_blocked, atol = 1e-6)
@@ -90,9 +89,9 @@ end
         block_size = 32
         F3 ./= sqrt(m^3)
         cuF3 = CuArray{Float32}(F3)
-        cuPhi =CuArray{Float32}(phi)
-        K3_full = mcc3_ground_truth(cuF3, cuPhi)
-        K3_blocked = mcc3(cuF3, cuPhi, block_size)
+        cuPhi = CuArray{Float32}(phi)
+        K3_full = Array(mcc3_tens_opt(cuF3, cuPhi))
+        K3_blocked = Array(mcc3(cuF3, cuPhi, block_size))
 
         K3_lowmem1 = Array(mcc3(cuF3, cuPhi))
         K3_lowmem2 = Array(mcc3!(cuF3, cuPhi))
@@ -106,19 +105,19 @@ end
 
 end
 
-@test "Third Order" begin
+# @test "Third Order" begin
 
-    # Analytical vs Sparse vs FD vs AD (Pair)
-    # Sparse vs FD vs AD (Three-Body)
+#     # Analytical vs Sparse vs FD vs AD (Pair)
+#     # Sparse vs FD vs AD (Three-Body)
 
-end
+# end
 
-@test "Fourth Order" begin
+# @test "Fourth Order" begin
     
-    # Analytical vs Sparse vs FD vs AD (Pair)
-    # Sparse vs FD vs AD (Three-Body)
+#     # Analytical vs Sparse vs FD vs AD (Pair)
+#     # Sparse vs FD vs AD (Three-Body)
 
-end
+# end
 
 
 # ω_THz = get_dispersion_points(sys_uc, pot; directions = ([1.0, 0.0, 0.0],), tol = 1e-12);

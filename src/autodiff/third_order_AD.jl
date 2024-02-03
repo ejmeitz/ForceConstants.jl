@@ -40,8 +40,8 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
                     D*(i-1) + 1 : D*(i-1) + D] .= iij_block
 
 
-               #2 js --> negatives cancel out
-               ijj_block = TO_exec(ustrip.(rᵢⱼ))
+               #2 js --> negate result again
+               ijj_block = -iij_block #deriv wrt to r_ij so can re-use above
 
                #ijj terms
                IFC3[D*(i-1) + 1 : D*(i-1) + D,
@@ -78,8 +78,7 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
         cutoff must be less than potential cutoff"
 
 
-    H3_exec_ij, H3_exec_iij, H3_exec_iik, H3_exec_ijj, H3_exec_ijk,
-     H3_exec_ikk, H3_exec_jjk, H3_exec_jkk = 
+    H3_exec_ij, H3_exec_iij, H3_exec_iik, H3_exec_ijj, H3_exec_ijk, H3_exec_ikk = 
         three_body_third_derivs(pot, D)
 
     
@@ -127,20 +126,21 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                             if dist_ik_sq < r_cut_sq #three body derivatives wrt r_ia, r_ib, r_jk
                                 nearest_j .= sys.atoms.position[i] .- rᵢⱼ
                                 nearest_k .= sys.atoms.position[i] .- rᵢₖ
+                                #*this is allocation?
                                 r_arr .= ustrip.([sys.atoms.position[i]; nearest_j; nearest_k])
 
                                 block .= H3_exec_iij(r_arr)
                                 set_third_order_terms!(IFC3, i_rng, j_rng, block)
 
-                                # block .= H3_exec_ijj(r_arr)
-                                # set_third_order_terms!(IFC3, j_rng, i_rng, block)
+                                block .= H3_exec_ijj(r_arr)
+                                set_third_order_terms!(IFC3, j_rng, i_rng, block)
 
 
                                 block .= H3_exec_iik(r_arr)
                                 set_third_order_terms!(IFC3, i_rng, k_rng, block)
 
-                                # block .= H3_exec_ikk(r_arr)
-                                # set_third_order_terms!(IFC3, k_rng, i_rng, block)
+                                block .= H3_exec_ikk(r_arr)
+                                set_third_order_terms!(IFC3, k_rng, i_rng, block)
                                 
 
                                 # block .= H3_exec_jjk(r_arr)
@@ -183,7 +183,7 @@ end
 function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange,
      rng3::UnitRange, block)
 
-    arr[rng1,rng1,rng3] .+= block
+    arr[rng1,rng2,rng3] .+= block
     arr[rng1,rng3,rng2] .+= block
     arr[rng2,rng1,rng3] .+= block
     arr[rng2,rng3,rng1] .+= block

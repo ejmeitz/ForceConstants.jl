@@ -1,4 +1,4 @@
-export gruneisen_parameter, calculate_r_bar2, calculate_r_bar3
+export gruneisen_parameter, calculate_r_bar, calculate_r_bar2, calculate_r_bar3, make_grunesien_test_systems
 
 """
 Calculate mode Gruneisen Parameter's from second and third order force constants
@@ -81,8 +81,12 @@ function calculate_r_bar(sys::SuperCellSystem{D}, Φ, e_vecs, freqs_sq, mass_nor
     N_atoms = n_atoms(sys)
     N_modes = size(e_vecs)[1]
     r_bar = zeros(N_atoms,D)
-    
-    Threads.@threads for i in range(1,N_atoms)
+
+    inv_freqs_sq = 1 ./freqs_sq
+
+    @info "N_atoms: $N_atoms, N_modes: $N_modes, D: $D"
+
+    Threads.@threads for i in range(1,10)
         for α in range(1,D)
             iα = D*(i-1) + α
             for n in range(1,N_modes)
@@ -91,13 +95,15 @@ function calculate_r_bar(sys::SuperCellSystem{D}, Φ, e_vecs, freqs_sq, mass_nor
                     for jβ in range(1,N_modes)
                         j_idx_1D = floor(Int64,(jβ-1)/D) + 1
                         for kγ in range(1,N_modes)
-                            tmp += Φ[jβ,kγ]*e_vecs[jβ,n]*r_flat[kγ]*mass_norm[i,j_idx_1D]
-                            # r_bar[i,α] += Φ[jβ,kγ]*e_vecs[jβ,n]*r_flat[kγ]*mass_norm[i,j_idx_1D]*e_vecs[iα,n]/freqs_sq[n]
+                            # tmp += Φ[jβ,kγ]*e_vecs[jβ,n]*r_flat[kγ]*mass_norm[i,j_idx_1D]
+                            r_bar[i,α] += Φ[jβ,kγ]*e_vecs[jβ,n]*r_flat[kγ]*mass_norm[i,j_idx_1D]*
+                                            conj(e_vecs[iα,n])*inv_freqs_sq[n]
                         end
                     end
-                    r_bar[i,α] += tmp*conj(e_vecs[iα,n])/freqs_sq[n]
+                    # r_bar[i,α] += tmp*conj(e_vecs[iα,n])/freqs_sq[n]
                 end
             end
+            @info "$(-r_bar[i,α])"
         end
     end
 
@@ -114,24 +120,48 @@ with two systems, one system should have its volume increased by dV and the othe
 The order of the input does not matter.
 """
 function gruneisen_parameter(systems::Vector{<:SuperCellSystem{D}},
-     pot::Potential, calc::ForceConstantCalculator, V₀, base_freqs) where {D}
+     pot::Potential, calc::ForceConstantCalculator, V₀, base_freqs, base_phi) where {D}
 
 
     @assert length(systems) ∈ [2,4] "Must provide 2 or 4 systems for Gruneisen Parameter calculation"
     @assert allequal(n_atoms.(systems)) "Systems must have same number of atoms"
 
+    N_modes = length(base_freqs)
+
     freqs = Vector{Float64}[]
+    phis = zeros(N_modes, N_modes, length(systems))
 
     #Sort smallest to largest volume
     # -dV, +dV for 2 systems
     # -2dV, -dV, +dV, +2dV for 4 systems
     systems = sort(systems, by = (sys -> volume(sys)))
 
-    for sys in systems
+    for (i,sys) in enumerate(systems)
         dynmat = dynamical_matrix(sys, pot, calc).values
-        freqs_sq, _ = get_modes(dynmat, D)
+        freqs_sq, phi = get_modes(dynmat, D)
         push!(freqs, sqrt.(freqs_sq))
+        phis[:,:,i] .= phi
     end
+
+    #Re-sort frequencies by matching eigenvectors to originals
+    # vals = zeros(N_modes)
+    # for i in range(1,length(systems))
+    #     idxs = zeros(Int64,N_modes)
+    #     for n in range(4,N_modes)
+    #         current_e_vec = view(base_phi, :, n)
+    #         #Find e-vec that best matches base
+    #         for m in range(4,N_modes)
+    #             @views vals[m] = dot(current_e_vec, phis[:,m,i])
+    #         end
+    #         # if n == 1
+    #         #     println(vals)
+    #         # end
+    #         idxs[n] = argmax(abs.(vals)) #max should be ~1
+    #     end
+    #     idxs[1] = 1; idxs[2] = 2; idxs[3] = 3 #hardcode rigid translation modes
+    #     @assert sort(idxs) == collect(range(1,N_modes))
+    #     freqs[i] .= freqs[idxs]
+    # end
 
     N_modes = length(freqs[1])
     derivs = zeros(N_modes)
@@ -163,7 +193,7 @@ function make_grunesien_test_systems(dV, n_sys, n_uc, calc, pot)
     da = (cbrt(V₀ + dV) - n_uc*a0)/n_uc
 
     dynmat = dynamical_matrix(base_sys, pot, calc).values
-    freqs_sq, _ = get_modes(dynmat)
+    freqs_sq, base_phi = get_modes(dynmat)
     base_freqs = sqrt.(freqs_sq)
 
     if n_sys == 2
@@ -172,7 +202,7 @@ function make_grunesien_test_systems(dV, n_sys, n_uc, calc, pot)
         sys1 = SuperCellSystem(crys1)
         sys2 = SuperCellSystem(crys2)
 
-        return [sys1, sys2], base_sys, V₀
+        return [sys1, sys2], base_sys, base_phi, V₀
     elseif n_sys == 4
         crys1 = Diamond(a0 + 2*da, :Si, SVector(n_uc,n_uc,n_uc))
         crys2 = Diamond(a0 + da, :Si, SVector(n_uc,n_uc,n_uc))
@@ -183,7 +213,7 @@ function make_grunesien_test_systems(dV, n_sys, n_uc, calc, pot)
         sys3 = SuperCellSystem(crys3)
         sys4 = SuperCellSystem(crys4)
 
-        return [sys1, sys2, sys3, sys4], base_freqs, V₀
+        return [sys1, sys2, sys3, sys4], base_freqs, base_phi, V₀
     end
 
 end

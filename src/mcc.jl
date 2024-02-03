@@ -1,4 +1,4 @@
-export mcc3, mcc3!
+export mcc3, mcc3!, mcc3_tens_opt
 
 
 """
@@ -8,7 +8,7 @@ Does not divide MCC calculation into smaller chunks. This might exhaust GPU memo
 Requires 5N³ memory.
 Returns array still in GPU memory
 """
-function mcc3_ground_truth(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2})
+function mcc3_tens_opt(Ψ::CuArray{Float32, 3}, phi::CuArray{Float32, 2})
 
     K3 = CUDA.zeros(Float32, size(Ψ));
 
