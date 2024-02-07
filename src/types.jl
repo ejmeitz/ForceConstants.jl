@@ -21,7 +21,7 @@ struct SuperCellSystem{D,L}
     box_sizes_SC::AbstractVector{L}
 end
 
-function SuperCellSystem(positions::AbstractVector{AbstractVector}, masses::AbstractVector,
+function SuperCellSystem(positions::AbstractVector{<:AbstractVector}, masses::AbstractVector,
     box_sizes::AbstractVector, charges = zeros(length(masses))*u"q")
     D = length(box_sizes)
     atoms = StructArray{Atom}((position = positions, mass = masses, charge = charges))
