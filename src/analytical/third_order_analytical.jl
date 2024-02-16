@@ -1,4 +1,4 @@
-export third_order, third_order!
+export third_order, third_order!, mass_weight_third_order!
 
 function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
     calc::AnalyticalCalculator) where D
@@ -112,7 +112,8 @@ function third_order!(Ψ, sys::SuperCellSystem{D}, pot::PairPotential,
             r .= sys.atoms.position[j] .- sys.atoms.position[i]
             nearest_mirror!(r, sys.box_sizes_SC)
             dist_sq = sum(x -> x^2, r)
-
+            
+            #ASR
             if dist_sq < r_cut_sq
                 dist = norm(r)
                 for α in range(1,D)
@@ -250,36 +251,36 @@ end
 
 # end
 
-# function mass_weight_third_order!(Ψ::ThirdOrderForceConstants, masses::AbstractVector)
-#     N_modes = size(Ψ)[1]
-#     D = Int(N_modes/length(masses))
-#     N_atoms = length(masses)
+function mass_weight_third_order!(Ψ::ThirdOrderForceConstants, masses::AbstractVector)
+    N_modes = size(Ψ)[1]
+    D = Int(N_modes/length(masses))
+    N_atoms = length(masses)
 
-#     @assert D ∈ [1,2,3] 
+    @assert D ∈ [1,2,3] 
 
-#     mass_unit = unit(masses[1])
-#     masses = ustrip.(masses)
+    mass_unit = unit(masses[1])
+    masses = ustrip.(masses)
 
-#     for i in 1:N_atoms
-#         for j in 1:N_atoms
-#             for k in 1:N_atoms
-#                 for α in 1:D
-#                     for β in 1:D
-#                         for γ in 1:D
-#                             ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
-#                             if Ψ[ii,jj,kk] != 0
-#                                 Ψ.values[ii,jj,kk] /= sqrt(masses[i]*masses[j]*masses[k])
-#                             end
-#                         end
-#                     end
-#                 end
-#             end
-#         end
-#     end
+    for i in 1:N_atoms
+        for j in 1:N_atoms
+            for k in 1:N_atoms
+                for α in 1:D
+                    for β in 1:D
+                        for γ in 1:D
+                            ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(k-1) + γ
+                            if Ψ[ii,jj,kk] != 0
+                                Ψ.values[ii,jj,kk] /= sqrt(masses[i]*masses[j]*masses[k])
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 
-#     Ψ.units /= mass_unit
-#     return Ψ
-# end
+    Ψ.units /= mass_unit
+    return Ψ
+end
 
 function ϕ₃(pot::PairPotential, r_norm, rᵢⱼ, α, β, γ)
     Φ′ = potential_first_deriv(pot, r_norm)
