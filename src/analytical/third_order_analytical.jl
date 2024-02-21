@@ -113,7 +113,6 @@ function third_order!(Ψ, sys::SuperCellSystem{D}, pot::PairPotential,
             nearest_mirror!(r, sys.box_sizes_SC)
             dist_sq = sum(x -> x^2, r)
             
-            #ASR
             if dist_sq < r_cut_sq
                 dist = norm(r)
                 for α in range(1,D)
@@ -134,6 +133,7 @@ function third_order!(Ψ, sys::SuperCellSystem{D}, pot::PairPotential,
 
     #Self terms
     Ψ = ASR!(Ψ, N_atoms, D)
+
 
     return Ψ
     
