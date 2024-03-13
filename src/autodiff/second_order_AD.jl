@@ -58,7 +58,7 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     @assert calc.r_cut <= pot.r_cut "For SW silicon force constant 
         cutoff must be less than potential cutoff"
 
-    H2_exec, H3_exec_ij, H3_exec_ik = 
+    H2_exec, H3_exec_ij, H3_exec_ik, H3_exec_jk = 
         three_body_second_derivs(pot, D)
    
     N_atoms = n_atoms(sys)
@@ -109,9 +109,9 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                                 IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
                                 IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= block
 
-                                # block .= H3_exec_jk(r_arr)
-                                # IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
-                                # IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
+                                block .= H3_exec_jk(r_arr)
+                                IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
+                                IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
                                  
                             end
                         end
@@ -132,7 +132,7 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
             end
         end
     end
-
+    
     IFC2 = apply_tols!(IFC2, calc.tol)
 
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, calc.tol)
