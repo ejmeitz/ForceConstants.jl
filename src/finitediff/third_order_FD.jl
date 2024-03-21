@@ -7,9 +7,8 @@ function third_order(sys_eq::SuperCellSystem{D}, pot::Potential,
     
 end
 
-
-function third_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs,
-    r_cut, h)
+#uses pot.r_cut
+function third_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs, h)
 
    h = uconvert(length_unit(pot), h)
 
@@ -21,7 +20,7 @@ function third_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::PairPot
    z = zero(pot.σ)
    combos = [[z,h,-h],[z,h,h],[z,-h,h],[z,-h,-h]]
    
-   force_unit = unit(force(pot,r_cut)) 
+   force_unit = unit(force(pot,pot.r_cut)) 
    forces = zeros(4)*force_unit
 
    posns = positions(sys_eq)
@@ -31,7 +30,7 @@ function third_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::PairPot
        posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
        posns[atom_idxs[3]][cartesian_idxs[3]] += combo[3]
 
-       forces[c] = force_loop_j(pot, posns, force_unit, r_cut, sys_eq.box_sizes_SC, N_atoms, atom_idxs[1], cartesian_idxs[1])
+       forces[c] = force_loop_j(pot, posns, force_unit, pot.r_cut, sys_eq.box_sizes_SC, N_atoms, atom_idxs[1], cartesian_idxs[1])
 
        posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
        posns[atom_idxs[3]][cartesian_idxs[3]] -= combo[3]
@@ -57,6 +56,7 @@ function third_order_finite_diff_eng(sys_eq::SuperCellSystem{3}, pot::Potential,
     posns = [Vector(a) for a in positions(sys_eq)]
     z = zero(0.0*length_unit(pot))
 
+    #all different
     if (atom_idxs[1] != atom_idxs[2]) && (atom_idxs[2] != atom_idxs[3]) && (atom_idxs[1] != atom_idxs[3])
         energies = zeros(8)*energy_unit(pot)
         combos = [[h,h,h],[h,-h,-h],[-h,-h,h],[-h,h,-h],[-h,-h,-h],[-h,h,h],[h,-h,h],[h,h,-h]]
@@ -66,7 +66,7 @@ function third_order_finite_diff_eng(sys_eq::SuperCellSystem{3}, pot::Potential,
             posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
             posns[atom_idxs[3]][cartesian_idxs[3]] += combo[3]
 
-            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
+            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, pot.r_cut)
 
             posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
             posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]
@@ -75,7 +75,7 @@ function third_order_finite_diff_eng(sys_eq::SuperCellSystem{3}, pot::Potential,
 
         return (1/(8*(h^3)))*(energies[1] + energies[2] + energies[3] + energies[4] -
                  energies[5] - energies[6] - energies[7] - energies[8])
-        
+    #all the same
     elseif (atom_idxs[1] == atom_idxs[2]) && (atom_idxs[2] == atom_idxs[3]) && (atom_idxs[1] == atom_idxs[3])
         energies = zeros(4)*energy_unit(pot)
         combos = [[-2*h,z,z],[-h,z,z],[h,z,z],[2*h,z,z]]
@@ -83,12 +83,13 @@ function third_order_finite_diff_eng(sys_eq::SuperCellSystem{3}, pot::Potential,
         for (c,combo) in enumerate(combos)
             posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
 
-            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
+            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, pot.r_cut)
 
             posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
         end
 
         return (1/(2*(h^3)))*(-energies[1] + 2*energies[2] - 2*energies[3] + energies[4])
+    #Two the same
     elseif (atom_idxs[1] != atom_idxs[2]) && (atom_idxs[1] == atom_idxs[3])
 
         #* ADD PERMUTATIONS OF THIS
@@ -100,7 +101,7 @@ function third_order_finite_diff_eng(sys_eq::SuperCellSystem{3}, pot::Potential,
             posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
             posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
 
-            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
+            energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, pot.r_cut)
 
             posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]
             posns[atom_idxs[2]][cartesian_idxs[2]] -= combo[2]

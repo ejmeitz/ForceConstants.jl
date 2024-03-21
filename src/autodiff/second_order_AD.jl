@@ -1,7 +1,7 @@
 export second_order
 
 function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
-      calc::AutoDiffCalculator) where D
+      calc::AutoDiffCalculator; check_asr = false, check_symmetry = true) where D
 
     @assert calc.r_cut <= pot.r_cut "Calculator r_cut must be less than potential r_cut"  
 
@@ -48,12 +48,15 @@ function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
 
     IFC2 = apply_tols!(IFC2, calc.tol)
 
+    check_asr && @assert asr_satisfied(IFC2, N_atoms, D, calc.tol) "ASR not satisfied for IFC2, please report this"
+    check_symmetry && @assert issymmetric(IFC2) "IFC were not symmetric, please report this"
+
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, calc.tol)
 
 end
 
 function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
-     calc::AutoDiffCalculator) where D
+     calc::AutoDiffCalculator; check_asr = false, check_symmetry = true) where D
 
     @assert calc.r_cut <= pot.r_cut "For SW silicon force constant 
         cutoff must be less than potential cutoff"
@@ -68,6 +71,7 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     #Loop Atomic Interactions and Add their contribution to various derivatives
     Threads.@threads for i in range(1,N_atoms)
         block = zeros(D,D)
+        block2 = zeros(D,D)
         rᵢⱼ = similar(sys.atoms.position[1])
         rᵢₖ = similar(sys.atoms.position[1])
         nearest_j = similar(sys.atoms.position[1])
@@ -101,17 +105,17 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                                 #contribution to ij derivative block
                                 r_arr .= ustrip.([sys.atoms.position[i]; nearest_j; nearest_k])
                                 block .= H3_exec_ij(r_arr)
-                                IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block 
-                                IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= block
+                                IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
+                                IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= permutedims!(block2, block, (2,1))
                                 
                                 #contribution to ik derivative block
                                 block .= H3_exec_ik(r_arr)
                                 IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
-                                IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= block
+                                IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= permutedims!(block2, block, (2,1))
 
-                                block .= H3_exec_jk(r_arr)
+                                block .= H3_exec_jk(r_arr) #*not sure this is thread safe
                                 IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
-                                IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
+                                IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= permutedims!(block2, block, (2,1))
                                  
                             end
                         end
@@ -135,62 +139,10 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     
     IFC2 = apply_tols!(IFC2, calc.tol)
 
+    check_asr && @assert asr_satisfied(IFC2, N_atoms, D, calc.tol) "ASR not satisfied for IFC2, please report this"
+    check_symmetry && @assert issymmetric(IFC2) "IFC were not symmetric, please report this"
+
     return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, calc.tol)
 
 end
 
-
-# function second_order_check(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
-#     calc::AutoDiffCalculator) where D
-#     #loop through blocks in IFC2
-#     for i in range(1, N_atoms)
-#         for j in range(i + 1, N_atoms)
-
-#             #Derivative of two body term is nonzero only for r_ij term
-#             rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
-#             rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
-#             dist_ij_sq = sum(x -> x^2, rᵢⱼ)
-
-#             if dist_ij_sq < r_cut_sq
-#                 ij_block = H_exec(ustrip.(rᵢⱼ))
-
-#                 IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .= ij_block
-#                 IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .= ij_block
-#             end
-
-
-#             #Derivative of three body term is non-zero in multiple places
-
-#             #When i,j = 1st,2nd atoms in triplet
-#             for k in range(j+1)
-#                 rᵢₖ = sys.atoms.position[i] .- sys.atoms.position[k]
-#                 rᵢₖ = nearest_mirror!(rᵢₖ, sys.box_sizes_SC)
-#                 dist_ik_sq = sum(x -> x^2, rᵢₖ)
-
-#                 if dist_ik_sq < r_cut_sq
-#                     nearest_j .= sys.atoms.position[i] .- rᵢⱼ
-#                     nearest_k .= sys.atoms.position[i] .- rᵢₖ
-        
-#                     r_arr .= ustrip.([sys.atoms.position[A]; nearest_j; nearest_k])
-#                     block .= H3_exec_ij(r_arr)
-#                     IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
-#                     IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= block
-#                 end
-#             end
-
-#             #When i,j = 1st,3rd atoms in triplet
-#             for j in range(1,k-1)
-#                 nearest_i = rᵢⱼ .+ sys.atoms.position[j]
-#             end
-
-#             #When i,j = 2nd,3rd atoms in triplet
-#             for i in range(1,N_atoms)
-
-#             end
-
-#         end
-#     end
-
-#     return IFC2
-
-# end

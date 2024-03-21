@@ -3,8 +3,6 @@ export second_order, second_order_finite_diff_single
 function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
     calc::FiniteDiffCalculator) where D
 
-    @assert calc.r_cut <= pot.r_cut "Calculator r_cut must be less than potential r_cut"
-
     N_atoms = n_atoms(sys_eq)
     IFC2 = zeros(D*N_atoms, D*N_atoms)
 
@@ -97,7 +95,7 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
         posns[atom_idxs[1]][cartesian_idxs[1]] += combo[1]
         posns[atom_idxs[2]][cartesian_idxs[2]] += combo[2]
 
-        energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
+        energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, pot.r_cut)
 
         #Un-modify
         posns[atom_idxs[1]][cartesian_idxs[1]] -= combo[1]

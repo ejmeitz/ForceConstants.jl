@@ -79,6 +79,9 @@ function Φ₃_si(lambda_epsilon, gamma_sigma, cosθ₀, cosθᵢⱼₖ, r_cut, 
 end 
 
 
+
+
+
 # function two_body_force(pot::StillingerWeberSilicon, rᵢⱼ, dist_ij, p, q, B, σ)
 #     part1 = -pair_potential(pot, dist_ij)*(rᵢⱼ/dist_ij)
 #     part2 = ((p*B*(dist_ij^(-p - 1)) - q*(dist_ij^(-q - 1)))/(B*(dist_ij^(-p)) - (dist_ij^(-q)))) + ((σ/(dist_ij - pot.r_cut))^2)

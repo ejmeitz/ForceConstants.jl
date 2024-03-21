@@ -70,26 +70,28 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
 
 end
 
+function load_sw_derivs()
+    suffix = ["ij", "iij", "iik", "ijj", "ijk", "ikk", "jjk", "jkk"]
+    
+    return (load_derivative(joinpath(@__DIR__, "SW_Third_Derivs.jld2"),
+             "H3_exec_$(s)") for s in suffix)
+
+end
 
 function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
      calc::AutoDiffCalculator) where D
 
-     @assert calc.r_cut <= pot.r_cut "For SW silicon force constant 
+     @assert calc.r_cut <= pot.r_cut "For AutoDiff SW silicon force constant 
         cutoff must be less than potential cutoff"
 
-
-    H3_exec_ij, H3_exec_iij, H3_exec_iik, H3_exec_ijj,
-     H3_exec_ijk, H3_exec_ikk, H3_exec_jjk, H3_exec_jkk = 
-        three_body_third_derivs(pot, D)
-
-    
     N_atoms = n_atoms(sys)
     IFC3 = zeros(D*N_atoms, D*N_atoms, D*N_atoms)
     r_cut_sq = calc.r_cut*calc.r_cut  
-
-    #Loop Atomic Interactions and Add their contribution to various derivatives
+    
+    #Loop Atomic Interactions and accumulate their contribution to various derivatives
     Threads.@threads for i in range(1,N_atoms) #&is this safe to parallelize?
         block = zeros(D,D,D)
+        block2 = zeros(D,D,D)
         rᵢⱼ = similar(sys.atoms.position[1])
         rᵢₖ = similar(sys.atoms.position[1])
         nearest_j = similar(sys.atoms.position[1])
@@ -108,15 +110,16 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                 if dist_ij_sq < r_cut_sq
 
                     if j > i #two body derivatives wrt r_ija, r_ijb, r_ijk
-                        block .= -H3_exec_ij(ustrip.(rᵢⱼ)) 
-
+                        block .= H3_exec_ij(ustrip.(rᵢⱼ)) 
+                        
                         #iij
-                        set_third_order_terms!(IFC3, i_rng, j_rng, block)
+                        set_third_order_terms!(IFC3, i_rng, j_rng, -block)
+                        
                         #ijj
-                        set_third_order_terms!(IFC3, j_rng, i_rng, -block)
+                        set_third_order_terms!(IFC3, j_rng, i_rng, block)
                     end
 
-                    # #Three body terms:
+                    #Three body terms:
                     for k in range(j+1, N_atoms)
                         if i != k
                             k_rng = D*(k-1) + 1 : D*(k-1) + D
@@ -127,32 +130,33 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                             if dist_ik_sq < r_cut_sq #three body derivatives wrt r_ia, r_ib, r_jk
                                 nearest_j .= sys.atoms.position[i] .- rᵢⱼ
                                 nearest_k .= sys.atoms.position[i] .- rᵢₖ
-                                #*this is allocation?
-                                r_arr .= ustrip.([sys.atoms.position[i]; nearest_j; nearest_k])
 
+                                update_r_arr!(r_arr, sys.atoms.position[i], nearest_j, nearest_k, D)
+
+                                #ij
                                 block .= H3_exec_iij(r_arr)
-                                set_third_order_terms!(IFC3, i_rng, j_rng, block)
+                                set_third_order_terms!(IFC3, i_rng, j_rng, block, block2)
 
                                 block .= H3_exec_ijj(r_arr)
-                                set_third_order_terms!(IFC3, j_rng, i_rng, block)
+                                set_third_order_terms_alt!(IFC3, j_rng, i_rng, block, block2)
 
-
+                                #ik
                                 block .= H3_exec_iik(r_arr)
-                                set_third_order_terms!(IFC3, i_rng, k_rng, block)
+                                set_third_order_terms!(IFC3, i_rng, k_rng, block, block2)
 
                                 block .= H3_exec_ikk(r_arr)
-                                set_third_order_terms!(IFC3, k_rng, i_rng, block)
-                                
-  
+                                set_third_order_terms_alt!(IFC3, k_rng, i_rng, block, block2)
+
+                                #jk #*not sure these two are thread safe since theres no i
                                 block .= H3_exec_jjk(r_arr)
-                                set_third_order_terms!(IFC3, j_rng, k_rng, block)
+                                set_third_order_terms!(IFC3, j_rng, k_rng, block, block2)
 
                                 block .= H3_exec_jkk(r_arr)
-                                set_third_order_terms!(IFC3, k_rng, j_rng, block)
+                                set_third_order_terms_alt!(IFC3, k_rng, j_rng, block, block2)
 
-
+                                #ijk
                                 block .= H3_exec_ijk(r_arr)
-                                set_third_order_terms!(IFC3, i_rng, j_rng, k_rng, block)
+                                set_third_order_terms!(IFC3, i_rng, j_rng, k_rng, block, block2)
                             end
                         end
                     end
@@ -170,6 +174,13 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
 
 end
 
+function update_r_arr!(r_arr, r_i, r_j, r_k, D)
+    r_arr[1:D] .= ustrip(r_i)
+    r_arr[D+1:2*D] .= ustrip(r_j)
+    r_arr[2*D+1:3*D] .= ustrip(r_k)
+    return r_arr
+end
+
 
 function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange, block)
 
@@ -181,16 +192,114 @@ function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange, block)
 
 end
 
-function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange,
-     rng3::UnitRange, block)
+#aab terms
+function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange, block, block2)
 
-    arr[rng1,rng2,rng3] .+= block
-    arr[rng1,rng3,rng2] .+= block
-    arr[rng2,rng1,rng3] .+= block
-    arr[rng2,rng3,rng1] .+= block
-    arr[rng3,rng1,rng2] .+= block
-    arr[rng3,rng2,rng1] .+= block
+    arr[rng1,rng1,rng2] .+= block
+    arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (1,3,2)) 
+    arr[rng2,rng1,rng1] .+= permutedims!(block2, block, (3,1,2))
 
     return arr
+
+end
+
+#abb terms
+function set_third_order_terms_alt!(arr, rng1::UnitRange, rng2::UnitRange, block, block2)
+
+    arr[rng2,rng1,rng1] .+= block
+    arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (3,1,2))
+    arr[rng1,rng1,rng2] .+= permutedims!(block2, block, (3,2,1))
+
+    return arr
+
+end
+
+
+function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange,
+    rng3::UnitRange, block, block2)
+
+   arr[rng1,rng2,rng3] .+= block
+   arr[rng1,rng3,rng2] .+= permutedims!(block2, block, (1,3,2)) 
+   arr[rng2,rng1,rng3] .+= permutedims!(block2, block, (2,1,3))
+   arr[rng2,rng3,rng1] .+= permutedims!(block2, block, (2,3,1))
+   arr[rng3,rng1,rng2] .+= permutedims!(block2, block, (3,1,2))
+   arr[rng3,rng2,rng1] .+= permutedims!(block2, block, (3,2,1))
+
+   return arr
+
+end
+
+#Useful for debugging the rotations in 3D
+# function make_pattern(a,b,c)
+#     out = Array{Vector{String}}(undef, (3,3,3))
+#     for (i,x) in enumerate([:x,:y,:z])
+#         for (j,y) in enumerate([:x,:y,:z])
+#             for (k,z) in enumerate([:x,:y,:z])
+#                 out[i,j,k] = sort(["r_$(a)$(x)", "r_$(b)$(y)", "r_$(c)$(z)"])
+#             end
+#         end
+#     end
+#     return out
+# end
+
+# Useful for debugging symmetry issues
+function check_sym(arr, k, N_at, D)
+    for i in 1:N_at
+        for j in i+1:N_at
+            for α in 1:D
+                for β in 1:D
+                    if !isapprox(arr[D*(i-1) + α, D*(j-1) + β, k], arr[D*(j-1) + β, D*(i-1) + α, k])
+                        println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1) ")
+                    end
+                end
+            end
+        end
+    end
+end
+
+function check_wrong(arr, arr2, k, N_at, D)
+    for i in 1:N_at
+        for j in i+1:N_at
+            for α in 1:D
+                for β in 1:D
+                    v1 = arr[D*(i-1) + α, D*(j-1) + β, k]
+                    v2 = arr2[D*(j-1) + β, D*(i-1) + α, k]
+                    if !isapprox(v1, v2, atol = 1e-4)
+                        println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1), err:  $(abs(v2 - v1))")
+                    end
+                end
+            end
+        end
+    end
+end
+
+function wrong_dist_hist(arr, arr2, sys)
+
+    N_atoms = n_atoms(sys)
+    D = 3
+
+    for i in 1:N_atoms
+        for j in 1:N_atoms
+            for k in [1]
+                for α in 1:D
+                    for β in 1:D
+                        for γ in 1:D
+                            v1 = arr[D*(i-1) + α, D*(j-1) + β, D*(k-1) + γ]
+                            v2 = arr2[D*(j-1) + β, D*(i-1) + α, D*(k-1) + γ]
+                            if !isapprox(v1, v2, atol = 1e-4)
+                                # println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1), err:  $(abs(v2 - v1))")
+                                
+                                r_ij = sys.atoms.position[i] .- sys.atoms.position[j]
+                                r_ik = sys.atoms.position[i] .- sys.atoms.position[k]
+                                dist_12 = round(ustrip(norm(nearest_mirror!(r_ij, sys.box_sizes_SC))), digits = 4)
+                                dist_13 = round(ustrip(norm(nearest_mirror!(r_ik, sys.box_sizes_SC))), digits = 4)
+                                println("r_$i,$j: $(dist_12), r_$i,$k: $(dist_13)")
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 
 end

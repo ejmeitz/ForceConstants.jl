@@ -80,9 +80,7 @@ mutable struct DenseForceConstants{O,V,U,T} <: AbstractForceConstants{O}
 end
 
 Base.size(fc::DenseForceConstants) = size(fc.values)
-Base.getindex(fc::DenseForceConstants{O}, idxs::Vararg{Integer, O}) where O = fc.values[idxs...]
-Base.getindex(fc::DenseForceConstants{O}, idxs::Vararg{UnitRange, O}) where O = fc.values[idxs...]
-Base.getindex(fc::DenseForceConstants{O}, idxs::CartesianIndex{O}) where O = fc.values[idxs]
+Base.getindex(fc::DenseForceConstants, args...) = getindex(fc.values, args...)
 Base.similar(fc::DenseForceConstants) = similar(fc.values)
 n_modes(fc::DenseForceConstants) = size(fc)[1]
 

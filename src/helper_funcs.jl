@@ -1,4 +1,4 @@
-export energy_loop, force_loop, energy_loop2, freqs_to_THz
+export energy_loop, force_loop, energy_loop2, freqs_to_THz,nearest_mirror!
 
 #Kronicker Delta
 δₖ(x,y) = ==(x,y)

@@ -1,6 +1,5 @@
 module ForceConstants
 
-
 using SimpleCrystals
 using StructArrays
 using Unitful
@@ -12,6 +11,9 @@ using Combinatorics
 using JLD2
 using TensorOperations
 using Combinatorics
+
+#*only needed by AD parts
+using Atomix: @atomic
 using FastDifferentiation
 
 using cuTENSOR
@@ -26,6 +28,8 @@ include("interactions/SW.jl")
 include("helper_funcs.jl")
 include("asr.jl")
 
+sw_generated_dir = joinpath(@__DIR__, "autodiff", "generated_derivatives", "SW")
+include.(filter(contains(r".jl$"), readdir(sw_generated_dir; join=true)))
 include("./autodiff/autodiff_helper.jl")
 include("./autodiff/second_order_AD.jl")
 include("./autodiff/third_order_AD.jl")
