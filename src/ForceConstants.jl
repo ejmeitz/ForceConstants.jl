@@ -15,6 +15,8 @@ using Combinatorics
 #*only needed by AD parts
 using Atomix: @atomic
 using FastDifferentiation
+using Symbolics
+using RuntimeGeneratedFunctions
 
 using cuTENSOR
 using CUDA

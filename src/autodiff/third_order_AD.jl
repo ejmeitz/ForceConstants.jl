@@ -87,7 +87,10 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     N_atoms = n_atoms(sys)
     IFC3 = zeros(D*N_atoms, D*N_atoms, D*N_atoms)
     r_cut_sq = calc.r_cut*calc.r_cut  
-    
+
+    H3_exec_iik = calc_H3_exec_iik(pot, D) #FastDiff breaks on this one so use Symbolics.jl (slow)
+    @info "H3 exec calced"
+
     #Loop Atomic Interactions and accumulate their contribution to various derivatives
     Threads.@threads for i in range(1,N_atoms) #&is this safe to parallelize?
         block = zeros(D,D,D)
@@ -111,7 +114,7 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
 
                     if j > i #two body derivatives wrt r_ija, r_ijb, r_ijk
                         block .= H3_exec_ij(ustrip.(rᵢⱼ)) 
-                        
+
                         #iij
                         set_third_order_terms!(IFC3, i_rng, j_rng, -block)
                         
@@ -132,22 +135,27 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                                 nearest_k .= sys.atoms.position[i] .- rᵢₖ
 
                                 update_r_arr!(r_arr, sys.atoms.position[i], nearest_j, nearest_k, D)
+                                # r_arr .= ustrip.([sys.atoms.position[i]; nearest_j; nearest_k])
 
-                                #ij
+                                # println(r_arr)
+                                # #ij
                                 block .= H3_exec_iij(r_arr)
                                 set_third_order_terms!(IFC3, i_rng, j_rng, block, block2)
 
                                 block .= H3_exec_ijj(r_arr)
                                 set_third_order_terms_alt!(IFC3, j_rng, i_rng, block, block2)
 
-                                #ik
-                                block .= H3_exec_iik(r_arr)
+                                # #ik
+                                # block .= H3_exec_iik(r_arr) #* CAUSES ASYMMETRY
+                                # set_third_order_terms!(IFC3, i_rng, k_rng, block, block2)
+
+                                H3_exec_symb!(block, H3_exec_iik, r_arr)
                                 set_third_order_terms!(IFC3, i_rng, k_rng, block, block2)
 
                                 block .= H3_exec_ikk(r_arr)
                                 set_third_order_terms_alt!(IFC3, k_rng, i_rng, block, block2)
 
-                                #jk #*not sure these two are thread safe since theres no i
+                                # #jk #*not sure these two are thread safe since theres no i
                                 block .= H3_exec_jjk(r_arr)
                                 set_third_order_terms!(IFC3, j_rng, k_rng, block, block2)
 
@@ -196,18 +204,20 @@ end
 function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange, block, block2)
 
     arr[rng1,rng1,rng2] .+= block
-    arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (1,3,2)) 
-    arr[rng2,rng1,rng1] .+= permutedims!(block2, block, (3,1,2))
+    arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (1,3,2))
+    arr[rng2,rng1,rng1] .+= permutedims!(block2, block, (3,2,1))
 
     return arr
 
 end
 
+
+
 #abb terms
 function set_third_order_terms_alt!(arr, rng1::UnitRange, rng2::UnitRange, block, block2)
 
     arr[rng2,rng1,rng1] .+= block
-    arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (3,1,2))
+    arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (2,1,3))
     arr[rng1,rng1,rng2] .+= permutedims!(block2, block, (3,2,1))
 
     return arr
@@ -230,17 +240,17 @@ function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange,
 end
 
 #Useful for debugging the rotations in 3D
-# function make_pattern(a,b,c)
-#     out = Array{Vector{String}}(undef, (3,3,3))
-#     for (i,x) in enumerate([:x,:y,:z])
-#         for (j,y) in enumerate([:x,:y,:z])
-#             for (k,z) in enumerate([:x,:y,:z])
-#                 out[i,j,k] = sort(["r_$(a)$(x)", "r_$(b)$(y)", "r_$(c)$(z)"])
-#             end
-#         end
-#     end
-#     return out
-# end
+function make_pattern(a,b,c)
+    out = Array{Vector{String}}(undef, (3,3,3))
+    for (i,x) in enumerate([:x,:y,:z])
+        for (j,y) in enumerate([:x,:y,:z])
+            for (k,z) in enumerate([:x,:y,:z])
+                out[i,j,k] = sort(["r_$(a)$(x)", "r_$(b)$(y)", "r_$(c)$(z)"])
+            end
+        end
+    end
+    return out
+end
 
 # Useful for debugging symmetry issues
 function check_sym(arr, k, N_at, D)
@@ -248,7 +258,7 @@ function check_sym(arr, k, N_at, D)
         for j in i+1:N_at
             for α in 1:D
                 for β in 1:D
-                    if !isapprox(arr[D*(i-1) + α, D*(j-1) + β, k], arr[D*(j-1) + β, D*(i-1) + α, k])
+                     if !isapprox(arr[D*(i-1) + α, D*(j-1) + β, k], arr[D*(j-1) + β, D*(i-1) + α, k])
                         println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1) ")
                     end
                 end
@@ -271,6 +281,10 @@ function check_wrong(arr, arr2, k, N_at, D)
             end
         end
     end
+end
+
+function count_wrong(arr, arr2, tol = 1e-4)
+    return sum(isapprox.(arr, arr2, atol = tol) .== false)
 end
 
 function wrong_dist_hist(arr, arr2, sys)
