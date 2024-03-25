@@ -89,10 +89,9 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     r_cut_sq = calc.r_cut*calc.r_cut  
 
     H3_exec_iik = calc_H3_exec_iik(pot, D) #FastDiff breaks on this one so use Symbolics.jl (slow)
-    @info "H3 exec calced"
 
     #Loop Atomic Interactions and accumulate their contribution to various derivatives
-    Threads.@threads for i in range(1,N_atoms) #&is this safe to parallelize?
+    for i in range(1,N_atoms) #&is this safe to parallelize?
         block = zeros(D,D,D)
         block2 = zeros(D,D,D)
         rᵢⱼ = similar(sys.atoms.position[1])
