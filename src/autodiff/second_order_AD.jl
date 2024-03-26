@@ -1,7 +1,5 @@
-export second_order
-
-function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
-      calc::AutoDiffCalculator; check_asr = false, check_symmetry = true) where D
+function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::PairPotential,
+      calc::AutoDiffCalculator) where {T,D}
 
     @assert calc.r_cut <= pot.r_cut "Calculator r_cut must be less than potential r_cut"  
 
@@ -13,7 +11,6 @@ function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
     r_cut_sq = calc.r_cut*calc.r_cut
 
     N_atoms = n_atoms(sys)
-    IFC2 = zeros(D*N_atoms,D*N_atoms)
 
     for i in range(1, N_atoms)
         for j in range(i + 1, N_atoms)
@@ -31,32 +28,18 @@ function second_order(sys::SuperCellSystem{D}, pot::PairPotential,
         end
     end
 
-    #Acoustic Sum Rule
-    Threads.@threads for i in range(1, N_atoms) # index of block matrix
-        for α in range(1,D)
-            for β in range(1,D)
-                ii = D*(i-1) + α
-                jj = D*(i-1) + β # i == j because we're on diagonal
-                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
-            end
-        end
-    end
+    ASR!(IFC2, N_atoms, D)
 
     #Taking deriv of r_ij gives you a negative sign on all terms
     # dU/dr_i_a = - dU/dr_ij_a
     IFC2 = -1 .* IFC2 
 
-    IFC2 = apply_tols!(IFC2, calc.tol)
-
-    check_asr && @assert asr_satisfied(IFC2, N_atoms, D, calc.tol) "ASR not satisfied for IFC2, please report this"
-    check_symmetry && @assert issymmetric(IFC2) "IFC were not symmetric, please report this"
-
-    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, calc.tol)
+    return IFC2
 
 end
 
-function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
-     calc::AutoDiffCalculator; check_asr = false, check_symmetry = true) where D
+function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
+     calc::AutoDiffCalculator) where {D,T}
 
     @assert calc.r_cut <= pot.r_cut "For SW silicon force constant 
         cutoff must be less than potential cutoff"
@@ -65,7 +48,6 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
         three_body_second_derivs(pot, D)
    
     N_atoms = n_atoms(sys)
-    IFC2 = zeros(D*N_atoms,D*N_atoms)
     r_cut_sq = calc.r_cut*calc.r_cut  
 
     # ij_locks = Array{ReentrantLock}(undef, D*N_atoms, D*N_atoms)
@@ -137,22 +119,9 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     end
 
     #Acoustic Sum Rule
-    Threads.@threads for i in range(1, N_atoms) # index of block matrix
-        for α in range(1,D)
-            for β in range(1,D)
-                ii = D*(i-1) + α
-                jj = D*(i-1) + β # i == j because we're on diagonal
-                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
-            end
-        end
-    end
+    ASR!(IFC2, N_atoms, D)
     
-    IFC2 = apply_tols!(IFC2, calc.tol)
-
-    check_asr && @assert asr_satisfied(IFC2, N_atoms, D, calc.tol) "ASR not satisfied for IFC2, please report this"
-    check_symmetry && @assert issymmetric(IFC2) "IFC were not symmetric, please report this"
-
-    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, calc.tol)
+    return IFC2
 
 end
 

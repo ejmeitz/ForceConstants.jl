@@ -1,11 +1,11 @@
-export third_order, third_order_finite_diff_eng
+export third_order_finite_diff_eng
 
-function third_order(sys_eq::SuperCellSystem{D}, pot::Potential,
-    calc::FiniteDiffCalculator) where D
+# function third_order(sys_eq::SuperCellSystem{D}, pot::Potential,
+#     calc::FiniteDiffCalculator) where D
 
-    throw(error("Not implemented yet"))
+#     throw(error("Not implemented yet"))
     
-end
+# end
 
 #uses pot.r_cut
 function third_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs, h)
@@ -41,8 +41,7 @@ end
 
 
 
-function third_order_finite_diff_eng(sys_eq::SuperCellSystem{3}, pot::Potential, atom_idxs, cartesian_idxs;
-    r_cut = pot.r_cut, h = 0.04*0.5291772109u"Å")
+function third_order_finite_diff_eng(sys_eq::SuperCellSystem{3}, pot::Potential, atom_idxs, cartesian_idxs; h = 0.04*0.5291772109u"Å")
 
     h = uconvert(length_unit(pot), h)
     N_atoms = n_atoms(sys_eq)
@@ -110,6 +109,6 @@ function third_order_finite_diff_eng(sys_eq::SuperCellSystem{3}, pot::Potential,
         return (1/(2*(h^3)))*(energies[1] + energies[2] + 2*energies[3] - energies[4] - energies[5] - 2*energies[6])
 
     else
-        @warn "Shouldnt be here"
+        @warn "Not implemented"
     end 
 end

@@ -1,5 +1,19 @@
 export ASR!, asr_satisfied
 
+function ASR!(ifc2::Matrix{T}, N_atoms, D) where T
+
+    Threads.@threads for i in range(1, N_atoms) # index of block matrix
+        for α in range(1,D)
+            for β in range(1,D)
+                ii = D*(i-1) + α
+                jj = D*(i-1) + β # i == j because we're on diagonal
+                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
+            end
+        end
+    end
+
+    return ifc2
+end
 
 function ASR!(ifc3::Array{T,3}, N_atoms, D) where T
     #Loop all self terms

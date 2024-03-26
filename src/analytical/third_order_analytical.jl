@@ -1,79 +1,8 @@
 export third_order, third_order!, mass_weight_third_order!
 
-function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
-    calc::AnalyticalCalculator) where D
 
-    @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
-    N_atoms = n_atoms(sys)
-    Ψ = zeros(D*N_atoms, D*N_atoms, D*N_atoms)
-
-    r_cut_sq = calc.r_cut*calc.r_cut
-
-    # pot is pair potential only loop atomic pairs
-    Threads.@threads for i in range(1,N_atoms)
-        r = zeros(D)*unit(sys.atoms.position[1][1]) #pre-allocate per thread
-        for j in range(i+1,N_atoms)
-
-            #i,i,j terms
-            r .= sys.atoms.position[i] .- sys.atoms.position[j]
-            nearest_mirror!(r, sys.box_sizes_SC)
-            dist_sq = sum(x -> x^2, r)
-
-            
-            if dist_sq < r_cut_sq
-                dist = norm(r)
-                for α in range(1,D)
-                    for β in range(1,D)
-                        for γ in range(1,D)
-                            val = -ustrip(ϕ₃(pot, dist, r, α, β, γ)) #* re-calculating derivatives ununecessarily in here
-                            ii = D*(i-1) + α; jj = D*(i-1) + β; kk = D*(j-1) + γ
-                            Ψ[ii,jj,kk] = val; Ψ[ii,kk,jj] = val
-                            Ψ[jj,kk,ii] = val; Ψ[jj,ii,kk] = val
-                            Ψ[kk,ii,jj] = val; Ψ[kk,jj,ii] = val 
-                        end
-                    end
-                end            
-
-            end
-
-            # #j,j,i term
-            r .= sys.atoms.position[j] .- sys.atoms.position[i]
-            nearest_mirror!(r, sys.box_sizes_SC)
-            dist_sq = sum(x -> x^2, r)
-
-            if dist_sq < r_cut_sq
-                dist = norm(r)
-                for α in range(1,D)
-                    for β in range(1,D)
-                        for γ in range(1,D)
-                            val = -ustrip(ϕ₃(pot, dist, r, α, β, γ)) 
-                            ii = D*(i-1) + α; jj = D*(j-1) + β; kk = D*(j-1) + γ
-                            Ψ[ii,jj,kk] = val; Ψ[ii,kk,jj] = val
-                            Ψ[jj,kk,ii] = val; Ψ[jj,ii,kk] = val
-                            Ψ[kk,ii,jj] = val; Ψ[kk,jj,ii] = val 
-                        end
-                    end
-                end            
-
-            end
-        end
-    end
-
-    #Self terms
-    Ψ = ASR!(Ψ, N_atoms, D)
-
-    #Apply tolerances
-    Ψ = apply_tols!(Ψ, calc.tol)
-
-    #Give proper units
-    Ψ_unit = energy_unit(pot) / length_unit(pot)^3
-
-    return DenseForceConstants(Ψ, Ψ_unit, calc.tol)
-    
-end
-
-function third_order!(Ψ, sys::SuperCellSystem{D}, pot::PairPotential,
-    calc::AnalyticalCalculator) where D
+function third_order!(Ψ::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotential,
+    calc::AnalyticalCalculator) where {T,D}
 
     @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
     N_atoms = n_atoms(sys)
@@ -134,10 +63,11 @@ function third_order!(Ψ, sys::SuperCellSystem{D}, pot::PairPotential,
     #Self terms
     Ψ = ASR!(Ψ, N_atoms, D)
 
-
     return Ψ
     
 end
+
+
 
 #* untested
 # function third_order_sparse(sys::SuperCellSystem{D}, pot::PairPotential,

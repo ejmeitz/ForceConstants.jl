@@ -1,10 +1,9 @@
-export second_order, second_order_finite_diff_single
+export second_order_finite_diff_single
 
-function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
-    calc::FiniteDiffCalculator) where D
+function second_order!(IFC2::Matrix{T}, sys_eq::SuperCellSystem{D}, pot::Potential,
+    calc::FiniteDiffCalculator) where {T,D}
 
     N_atoms = n_atoms(sys_eq)
-    IFC2 = zeros(D*N_atoms, D*N_atoms)
 
     r_cut_sq = calc.r_cut*calc.r_cut
 
@@ -25,8 +24,7 @@ function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
                     ii = D*(i-1) + α
                     for β in range(1,D)
                         jj = D*(j-1) + β
-                        IFC2[ii,jj] = ustrip(second_order_finite_diff_single(sys_eq, pot, [i,j], [α,β],
-                            calc.r_cut, calc.h, posns)) #* remove alloc [i,j]
+                        IFC2[ii,jj] = ustrip(second_order_finite_diff_single(sys_eq, pot, [i,j], [α,β], calc.h, posns)) #* remove alloc [i,j]
                         IFC2[jj,ii] = IFC2[ii,jj]
                     end
                 end
@@ -35,23 +33,14 @@ function second_order(sys_eq::SuperCellSystem{D}, pot::Potential,
         end 
     end
 
-    Threads.@threads for i in range(1, N_atoms) # index of block matrix
-        for α in range(1,D)
-            for β in range(1,D)
-                ii = D*(i-1) + α
-                jj = D*(i-1) + β # i == j because we're on diagonal
-                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
-            end
-        end
-    end
+    ASR!(IFC2, N_atoms, D)
 
-
-    return DenseForceConstants(IFC2, energy_unit(pot) / length_unit(pot)^2, 0.0)
+    return IFC2
 
 end
 
 function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potential, atom_idxs,
-     cartesian_idxs, r_cut, h, posns)
+     cartesian_idxs, h, posns)
 
    h = uconvert(length_unit(pot), h)
    N_atoms = n_atoms(sys_eq)
@@ -70,23 +59,6 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
 #    posns[atom_idxs[1]][cartesian_idxs[1]] -= h
 #    return - (ΔFᵦ - Fᵦ₀)/h 
 
-
-    # if atom_idxs[1] == atom_idxs[2] && cartesian_idxs[1] == cartesian_idxs[2]
-    #     energies = zeros(3)*energy_unit(pot)
-    #     combos = [h,0.0*length_unit(pot),-h]
-
-    #     for (c,combo) in enumerate(combos)
-    #         posns[atom_idxs[1]][cartesian_idxs[1]] += combo
-    #         # posns[atom_idxs[1]][cartesian_idxs[2]] += combo
-
-    #         energies[c] = energy_loop(pot, posns, sys_eq.box_sizes_SC, N_atoms, r_cut)
-
-    #         posns[atom_idxs[1]][cartesian_idxs[1]] -= combo
-    #         # posns[atom_idxs[1]][cartesian_idxs[2]] -= combo
-    #     end
-
-    #     return (1/(h^2))*(energies[1] - 2*energies[2] + energies[3])
-    # else
     energies = zeros(4)*energy_unit(pot)
     combos = [[h,h],[-h,-h],[h,-h],[-h,h]]
 
@@ -103,5 +75,4 @@ function second_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::Potent
     end
 
     return (1/(4*h^2))*(energies[1] + energies[2] - energies[3] - energies[4])
-    # end
 end

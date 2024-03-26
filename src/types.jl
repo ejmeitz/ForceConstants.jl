@@ -200,14 +200,15 @@ struct AutoDiffCalculator{R,T} <: ForceConstantCalculator
     r_cut::R
 end
 
-struct FiniteDiffCalculator{H,R} <: ForceConstantCalculator
+struct FiniteDiffCalculator{T,H,R} <: ForceConstantCalculator
+    tol::T
     r_cut::R
     h::H
 end
 
-function FiniteDiffCalculator(r_cut; h = 0.04*0.5291772109u"Å")
-    return FiniteDiffCalculator{typeof(r_cut), typeof(h)}(
-        r_cut, h
+function FiniteDiffCalculator(tol, r_cut; h = 0.04*0.5291772109u"Å")
+    return FiniteDiffCalculator{typeof(tol),typeof(r_cut), typeof(h)}(
+        tol, r_cut, h
     )
 end
 

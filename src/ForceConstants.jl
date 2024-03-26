@@ -48,12 +48,10 @@ include("./analytical/third_order_analytical.jl")
 # include("./analytical/fourth_order_analytical.jl")
 
 # include("gruneisen.jl")
+include("ifc.jl")
 include("dynmat.jl")
 include("mcc.jl")
 include("io.jl") 
-
-include("./autodiff/auto_diff_test.jl")
-
 
 
 end

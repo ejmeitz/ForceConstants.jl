@@ -1,7 +1,5 @@
-export third_order
-
-function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
-      calc::AutoDiffCalculator) where D
+function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotential,
+      calc::AutoDiffCalculator) where {T,D}
 
     vars = make_variables(:r, D)
     r_norm = sqrt(sum(x -> x^2, vars))
@@ -12,7 +10,6 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
     TO_exec = make_function(third_order_symbolic, vars)
 
     N_atoms = n_atoms(sys)
-    IFC3 = zeros(D*N_atoms,D*N_atoms,D*N_atoms)
     r_cut_sq = calc.r_cut*calc.r_cut
 
     Threads.@threads for i in range(1, N_atoms)
@@ -64,41 +61,32 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
     #Acoustic Sum Rule
     ASR!(IFC3, N_atoms, D)
 
-    IFC3 = apply_tols!(IFC3, calc.tol)
-
-    return DenseForceConstants(IFC3, energy_unit(pot) / length_unit(pot)^3, calc.tol)
+    return IFC3
 
 end
 
 
-function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
-     calc::AutoDiffCalculator) where D
+function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
+     calc::AutoDiffCalculator) where {T,D}
 
      @assert calc.r_cut <= pot.r_cut "For AutoDiff SW silicon force constant 
         cutoff must be less than potential cutoff"
 
     N_atoms = n_atoms(sys)
-    IFC3 = zeros(D*N_atoms, D*N_atoms, D*N_atoms)
     r_cut_sq = calc.r_cut*calc.r_cut  
 
     H3_exec_iik = calc_H3_exec_iik(pot, D) #FastDiff breaks on this one so use Symbolics.jl (slow)
 
-    # jk_locks = Array{ReentrantLock}(undef, D*N_atoms, D*N_atoms)
-    # fill!(jk_locks, ReentrantLock())
-
-    # ij_locks = Array{ReentrantLock}(undef, D*N_atoms, D*N_atoms)
-    # fill!(ij_locks, ReentrantLock())
+    block = zeros(D,D,D)
+    block2 = zeros(D,D,D)
+    rᵢⱼ = similar(sys.atoms.position[1])
+    rᵢₖ = similar(sys.atoms.position[1])
+    nearest_j = similar(sys.atoms.position[1])
+    nearest_k = similar(sys.atoms.position[1])
+    r_arr = Vector{Float64}(undef, D*D)
 
     #Loop Atomic Interactions and accumulate their contribution to various derivatives
     for i in range(1,N_atoms) #&is this safe to parallelize?
-        block = zeros(D,D,D)
-        block2 = zeros(D,D,D)
-        rᵢⱼ = similar(sys.atoms.position[1])
-        rᵢₖ = similar(sys.atoms.position[1])
-        nearest_j = similar(sys.atoms.position[1])
-        nearest_k = similar(sys.atoms.position[1])
-        r_arr = Vector{Float64}(undef, D*D)
-
         i_rng = D*(i-1) + 1 : D*(i-1) + D
         for j in range(1, N_atoms)
             if i != j
@@ -156,12 +144,10 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
 
                                 # #jk #*These are not thread safe since there is no i
                                 block .= H3_exec_jjk(r_arr)
-                                # lock(jk_locks[D*(j-1) + 1, D*(k-1) + 1])
                                 set_third_order_terms!(IFC3, j_rng, k_rng, block, block2)
 
                                 block .= H3_exec_jkk(r_arr)
                                 set_third_order_terms_alt!(IFC3, k_rng, j_rng, block, block2)
-                                # unlock(jk_locks[D*(j-1) + 1, D*(k-1) + 1])
 
                                 #ijk
                                 block .= H3_exec_ijk(r_arr)
@@ -177,9 +163,7 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
 
     IFC3 = ASR!(IFC3, N_atoms, D)
 
-    IFC3 = apply_tols!(IFC3, calc.tol)
-
-    return DenseForceConstants(IFC3, energy_unit(pot) / length_unit(pot)^3, calc.tol)
+    return IFC3
 
 end
 
@@ -212,8 +196,6 @@ function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange, block, bl
 
 end
 
-
-
 #abb terms
 function set_third_order_terms_alt!(arr, rng1::UnitRange, rng2::UnitRange, block, block2)
 
@@ -224,7 +206,6 @@ function set_third_order_terms_alt!(arr, rng1::UnitRange, rng2::UnitRange, block
     return arr
 
 end
-
 
 function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange,
     rng3::UnitRange, block, block2)
@@ -240,81 +221,81 @@ function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange,
 
 end
 
-#Useful for debugging the rotations in 3D
-function make_pattern(a,b,c)
-    out = Array{Vector{String}}(undef, (3,3,3))
-    for (i,x) in enumerate([:x,:y,:z])
-        for (j,y) in enumerate([:x,:y,:z])
-            for (k,z) in enumerate([:x,:y,:z])
-                out[i,j,k] = sort(["r_$(a)$(x)", "r_$(b)$(y)", "r_$(c)$(z)"])
-            end
-        end
-    end
-    return out
-end
+# #Useful for debugging the rotations in 3D
+# function make_pattern(a,b,c)
+#     out = Array{Vector{String}}(undef, (3,3,3))
+#     for (i,x) in enumerate([:x,:y,:z])
+#         for (j,y) in enumerate([:x,:y,:z])
+#             for (k,z) in enumerate([:x,:y,:z])
+#                 out[i,j,k] = sort(["r_$(a)$(x)", "r_$(b)$(y)", "r_$(c)$(z)"])
+#             end
+#         end
+#     end
+#     return out
+# end
 
-# Useful for debugging symmetry issues
-function check_sym(arr, k, N_at, D)
-    for i in 1:N_at
-        for j in i+1:N_at
-            for α in 1:D
-                for β in 1:D
-                     if !isapprox(arr[D*(i-1) + α, D*(j-1) + β, k], arr[D*(j-1) + β, D*(i-1) + α, k])
-                        println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1) ")
-                    end
-                end
-            end
-        end
-    end
-end
+# # Useful for debugging symmetry issues
+# function check_sym(arr, k, N_at, D)
+#     for i in 1:N_at
+#         for j in i+1:N_at
+#             for α in 1:D
+#                 for β in 1:D
+#                      if !isapprox(arr[D*(i-1) + α, D*(j-1) + β, k], arr[D*(j-1) + β, D*(i-1) + α, k])
+#                         println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1) ")
+#                     end
+#                 end
+#             end
+#         end
+#     end
+# end
 
-function check_wrong(arr, arr2, k, N_at, D)
-    for i in 1:N_at
-        for j in i+1:N_at
-            for α in 1:D
-                for β in 1:D
-                    v1 = arr[D*(i-1) + α, D*(j-1) + β, k]
-                    v2 = arr2[D*(j-1) + β, D*(i-1) + α, k]
-                    if !isapprox(v1, v2, atol = 1e-4)
-                        println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1), err:  $(abs(v2 - v1))")
-                    end
-                end
-            end
-        end
-    end
-end
+# function check_wrong(arr, arr2, k, N_at, D)
+#     for i in 1:N_at
+#         for j in i+1:N_at
+#             for α in 1:D
+#                 for β in 1:D
+#                     v1 = arr[D*(i-1) + α, D*(j-1) + β, k]
+#                     v2 = arr2[D*(j-1) + β, D*(i-1) + α, k]
+#                     if !isapprox(v1, v2, atol = 1e-4)
+#                         println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1), err:  $(abs(v2 - v1))")
+#                     end
+#                 end
+#             end
+#         end
+#     end
+# end
 
-function count_wrong(arr, arr2, tol = 1e-4)
-    return sum(isapprox.(arr, arr2, atol = tol) .== false)
-end
+# function count_wrong(arr, arr2, tol = 1e-4)
+#     return sum(isapprox.(arr, arr2, atol = tol) .== false)
+# end
 
-function wrong_dist_hist(arr, arr2, sys)
+# function wrong_dist_hist(arr, arr2, sys)
 
-    N_atoms = n_atoms(sys)
-    D = 3
+#     N_atoms = n_atoms(sys)
+#     D = 3
 
-    for i in 1:N_atoms
-        for j in 1:N_atoms
-            for k in [1]
-                for α in 1:D
-                    for β in 1:D
-                        for γ in 1:D
-                            v1 = arr[D*(i-1) + α, D*(j-1) + β, D*(k-1) + γ]
-                            v2 = arr2[D*(j-1) + β, D*(i-1) + α, D*(k-1) + γ]
-                            if !isapprox(v1, v2, atol = 1e-4)
-                                # println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1), err:  $(abs(v2 - v1))")
+#     for i in 1:N_atoms
+#         for j in 1:N_atoms
+#             for k in [1]
+#                 for α in 1:D
+#                     for β in 1:D
+#                         for γ in 1:D
+#                             v1 = arr[D*(i-1) + α, D*(j-1) + β, D*(k-1) + γ]
+#                             v2 = arr2[D*(j-1) + β, D*(i-1) + α, D*(k-1) + γ]
+#                             if !isapprox(v1, v2, atol = 1e-4)
+#                                 # println("i: $i, j: $j, k: $(((k-1) ÷ 3) + 1), err:  $(abs(v2 - v1))")
                                 
-                                r_ij = sys.atoms.position[i] .- sys.atoms.position[j]
-                                r_ik = sys.atoms.position[i] .- sys.atoms.position[k]
-                                dist_12 = round(ustrip(norm(nearest_mirror!(r_ij, sys.box_sizes_SC))), digits = 4)
-                                dist_13 = round(ustrip(norm(nearest_mirror!(r_ik, sys.box_sizes_SC))), digits = 4)
-                                println("r_$i,$j: $(dist_12), r_$i,$k: $(dist_13)")
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
+#                                 r_ij = sys.atoms.position[i] .- sys.atoms.position[j]
+#                                 r_ik = sys.atoms.position[i] .- sys.atoms.position[k]
+#                                 dist_12 = round(ustrip(norm(nearest_mirror!(r_ij, sys.box_sizes_SC))), digits = 4)
+#                                 dist_13 = round(ustrip(norm(nearest_mirror!(r_ik, sys.box_sizes_SC))), digits = 4)
+#                                 println("r_$i,$j: $(dist_12), r_$i,$k: $(dist_13)")
+#                             end
+#                         end
+#                     end
+#                 end
+#             end
+#         end
+#     end
 
-end
+# end
