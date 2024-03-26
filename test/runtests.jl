@@ -6,6 +6,7 @@ using LinearAlgebra
 using CUDA
 using Combinatorics
 using JLD2
+using Unitful
 
 # Allow CUDA device to be specified
 const DEVICE = get(ENV, "DEVICE", "0")
@@ -105,24 +106,40 @@ end
 
 end
 
-# @test "LJ Analytical vs AD vs FD" begin
+@testset "LJ (FD, AD, Analytical)" begin
     
+    pot = LJ(3.4u"Å", 0.24037u"kcal * mol^-1", 8.5u"Å")
+    fcc_crystal = FCC(5.2468u"Å", :Ar, SVector(4,4,4))
+    sys = SuperCellSystem(fcc_crystal);
+    
+    tol = 1e-12
+    calc_AD = AutoDiffCalculator(tol, pot.r_cut)
+    calc_FD = FiniteDiffCalculator(tol, pot.r_cut)
+    calc_analytical = AnalyticalCalculator(tol, pot.r_cut)
 
-# end
+    ifc2_AD = second_order(sys, pot, calc_AD)
+    ifc2_FD = second_order(sys, pot, calc_FD)
+    ifc2_analytical = second_order(sys, pot, calc_analytical)
 
-# @test "Third Order" begin
+    @test isapprox(ifc2_AD.values, ifc2_FD.values, rtol = 0.01)
+    @test isapprox(ifc2_analytical.values, ifc2_AD.values, atol = 1e-12)
+
+    ifc3_AD = third_order(sys, pot, calc_AD)
+    # ifc3_FD = third_order(sys, pot, calc_FD)
+    ifc3_analytical = third_order(sys, pot, calc_analytical)
+
+    # @test isapprox(ifc3_AD.values, ifc3_FD.values, rtol = 0.01)
+    @test isapprox(ifc3_analytical.values, ifc3_AD.values, atol = 1e-12)
+
+end
+
+# @test "SW" begin
 
 #     # Analytical vs Sparse vs FD vs AD (Pair)
 #     # Sparse vs FD vs AD (Three-Body)
 
 # end
 
-# @test "Fourth Order" begin
-    
-#     # Analytical vs Sparse vs FD vs AD (Pair)
-#     # Sparse vs FD vs AD (Three-Body)
-
-# end
 
 
 # ω_THz = get_dispersion_points(sys_uc, pot; directions = ([1.0, 0.0, 0.0],), tol = 1e-12);

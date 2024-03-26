@@ -7,7 +7,6 @@ export third_order_finite_diff_eng
     
 # end
 
-#uses pot.r_cut
 function third_order_finite_diff_single(sys_eq::SuperCellSystem{3}, pot::PairPotential, atom_idxs, cartesian_idxs, h)
 
    h = uconvert(length_unit(pot), h)

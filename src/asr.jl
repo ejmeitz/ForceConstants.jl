@@ -7,7 +7,7 @@ function ASR!(ifc2::Matrix{T}, N_atoms, D) where T
             for β in range(1,D)
                 ii = D*(i-1) + α
                 jj = D*(i-1) + β # i == j because we're on diagonal
-                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
+                ifc2[ii,jj] = -1*sum(ifc2[ii, β:D:end])
             end
         end
     end

@@ -20,7 +20,7 @@ function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::PairPotent
             dist_ij_sq = sum(x -> x^2, rᵢⱼ)
 
             if dist_ij_sq < r_cut_sq
-                ij_block = H_exec(ustrip.(rᵢⱼ))
+                ij_block = -H_exec(ustrip.(rᵢⱼ))
 
                 IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .= ij_block
                 IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .= ij_block
@@ -29,10 +29,6 @@ function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::PairPotent
     end
 
     ASR!(IFC2, N_atoms, D)
-
-    #Taking deriv of r_ij gives you a negative sign on all terms
-    # dU/dr_i_a = - dU/dr_ij_a
-    IFC2 = -1 .* IFC2 
 
     return IFC2
 
