@@ -68,8 +68,14 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     IFC2 = zeros(D*N_atoms,D*N_atoms)
     r_cut_sq = calc.r_cut*calc.r_cut  
 
+    # ij_locks = Array{ReentrantLock}(undef, D*N_atoms, D*N_atoms)
+    # fill!(ij_locks, ReentrantLock())
+
+    # jk_locks = Array{ReentrantLock}(undef, D*N_atoms, D*N_atoms)
+    # fill!(jk_locks, ReentrantLock())
+
     #Loop Atomic Interactions and Add their contribution to various derivatives
-    Threads.@threads for i in range(1,N_atoms)
+    for i in range(1,N_atoms)
         block = zeros(D,D)
         block2 = zeros(D,D)
         rᵢⱼ = similar(sys.atoms.position[1])
@@ -105,18 +111,22 @@ function second_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                                 #contribution to ij derivative block
                                 r_arr .= ustrip.([sys.atoms.position[i]; nearest_j; nearest_k])
                                 block .= H3_exec_ij(r_arr)
+                                # lock(ij_locks[D*(i-1) + 1, D*(j-1) + 1])
                                 IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
                                 IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= permutedims!(block2, block, (2,1))
-                                
+                                # unlock(ij_locks[D*(i-1) + 1, D*(j-1) + 1])
+
                                 #contribution to ik derivative block
                                 block .= H3_exec_ik(r_arr)
                                 IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
                                 IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= permutedims!(block2, block, (2,1))
 
-                                block .= H3_exec_jk(r_arr) #*not sure this is thread safe
+                                block .= H3_exec_jk(r_arr)
+                                # lock(jk_locks[D*(j-1) + 1, D*(k-1) + 1])
                                 IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
                                 IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= permutedims!(block2, block, (2,1))
-                                 
+                                # unlock(jk_locks[D*(j-1) + 1, D*(k-1) + 1])
+
                             end
                         end
                     end

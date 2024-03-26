@@ -70,13 +70,6 @@ function third_order(sys::SuperCellSystem{D}, pot::PairPotential,
 
 end
 
-function load_sw_derivs()
-    suffix = ["ij", "iij", "iik", "ijj", "ijk", "ikk", "jjk", "jkk"]
-    
-    return (load_derivative(joinpath(@__DIR__, "SW_Third_Derivs.jld2"),
-             "H3_exec_$(s)") for s in suffix)
-
-end
 
 function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
      calc::AutoDiffCalculator) where D
@@ -89,6 +82,12 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
     r_cut_sq = calc.r_cut*calc.r_cut  
 
     H3_exec_iik = calc_H3_exec_iik(pot, D) #FastDiff breaks on this one so use Symbolics.jl (slow)
+
+    # jk_locks = Array{ReentrantLock}(undef, D*N_atoms, D*N_atoms)
+    # fill!(jk_locks, ReentrantLock())
+
+    # ij_locks = Array{ReentrantLock}(undef, D*N_atoms, D*N_atoms)
+    # fill!(ij_locks, ReentrantLock())
 
     #Loop Atomic Interactions and accumulate their contribution to various derivatives
     for i in range(1,N_atoms) #&is this safe to parallelize?
@@ -103,7 +102,7 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
         i_rng = D*(i-1) + 1 : D*(i-1) + D
         for j in range(1, N_atoms)
             if i != j
-                j_rng = D*(j-1) + 1 : D*(j-1) + D #*this allocates new range every time
+                j_rng = D*(j-1) + 1 : D*(j-1) + D
                 #Two body term
                 rᵢⱼ .= sys.atoms.position[i] .- sys.atoms.position[j]
                 nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
@@ -136,13 +135,14 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                                 update_r_arr!(r_arr, sys.atoms.position[i], nearest_j, nearest_k, D)
                                 # r_arr .= ustrip.([sys.atoms.position[i]; nearest_j; nearest_k])
 
-                                # println(r_arr)
-                                # #ij
+                                # #ij #*These are not thread safe since i and j can be same perm (e.g. (1,2), (2,1))
                                 block .= H3_exec_iij(r_arr)
+                                # lock(ij_locks[D*(i-1) + 1, D*(j-1) + 1])
                                 set_third_order_terms!(IFC3, i_rng, j_rng, block, block2)
 
                                 block .= H3_exec_ijj(r_arr)
                                 set_third_order_terms_alt!(IFC3, j_rng, i_rng, block, block2)
+                                # unlock(ij_locks[D*(i-1) + 1, D*(j-1) + 1])
 
                                 # #ik
                                 # block .= H3_exec_iik(r_arr) #* CAUSES ASYMMETRY
@@ -154,12 +154,14 @@ function third_order(sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
                                 block .= H3_exec_ikk(r_arr)
                                 set_third_order_terms_alt!(IFC3, k_rng, i_rng, block, block2)
 
-                                # #jk #*not sure these two are thread safe since theres no i
+                                # #jk #*These are not thread safe since there is no i
                                 block .= H3_exec_jjk(r_arr)
+                                # lock(jk_locks[D*(j-1) + 1, D*(k-1) + 1])
                                 set_third_order_terms!(IFC3, j_rng, k_rng, block, block2)
 
                                 block .= H3_exec_jkk(r_arr)
                                 set_third_order_terms_alt!(IFC3, k_rng, j_rng, block, block2)
+                                # unlock(jk_locks[D*(j-1) + 1, D*(k-1) + 1])
 
                                 #ijk
                                 block .= H3_exec_ijk(r_arr)
