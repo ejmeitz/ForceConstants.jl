@@ -125,10 +125,8 @@ end
     @test isapprox(ifc2_analytical.values, ifc2_AD.values, atol = 1e-12)
 
     ifc3_AD = third_order(sys, pot, calc_AD)
-    # ifc3_FD = third_order(sys, pot, calc_FD)
     ifc3_analytical = third_order(sys, pot, calc_analytical)
 
-    # @test isapprox(ifc3_AD.values, ifc3_FD.values, rtol = 0.01)
     @test isapprox(ifc3_analytical.values, ifc3_AD.values, atol = 1e-12)
 
 end
