@@ -26,11 +26,15 @@ struct StillingerWeberSilicon{R,GS,LE} <: ThreeBodyPotential
 end
 
 
-function StillingerWeberSilicon()
+function StillingerWeberSilicon(; units = true)
     #From LAMMPS Si.sw file
-    sws_params = SW_Params(2.1683u"eV", 2.0951u"Å", 1.80, 21.0, 1.20,
+    if units
+        sws_params = SW_Params(2.1683u"eV", 2.0951u"Å", 1.80, 21.0, 1.20,
+            -0.333333333333, 7.049556277,  0.6022245584,  4.0,  0.0)
+    else
+        sws_params = SW_Params(2.1683, 2.0951, 1.80, 21.0, 1.20,
         -0.333333333333, 7.049556277,  0.6022245584,  4.0,  0.0)
-    
+    end
     r_cut = sws_params.a*sws_params.σ
     gamma_sigma = sws_params.σ*sws_params.γ
     lambda_epsilon = sws_params.ϵ*sws_params.λ
