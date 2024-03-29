@@ -13,7 +13,6 @@ using TensorOperations
 using Combinatorics
 
 #*only needed by AD parts
-using Atomix: @atomic
 using FastDifferentiation
 using Symbolics
 using RuntimeGeneratedFunctions
@@ -32,7 +31,7 @@ include("asr.jl")
 
 sw_generated_dir = joinpath(@__DIR__, "autodiff", "generated_derivatives", "SW")
 include.(filter(contains(r".jl$"), readdir(sw_generated_dir; join=true)))
-include("./autodiff/autodiff_helper.jl")
+# include("./autodiff/autodiff_helper.jl")
 include("./autodiff/second_order_AD.jl")
 include("./autodiff/third_order_AD.jl")
 # include("./autodiff/fourth_order_AD.jl")
