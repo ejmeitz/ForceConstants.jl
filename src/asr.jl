@@ -7,7 +7,7 @@ function ASR!(ifc2::Matrix{T}, N_atoms, D) where T
             for β in range(1,D)
                 ii = D*(i-1) + α
                 jj = D*(i-1) + β # i == j because we're on diagonal
-                ifc2[ii,jj] = -1*sum(ifc2[ii, β:D:end])
+                ifc2[ii,jj] = @views -1*sum(ifc2[ii, β:D:end])
             end
         end
     end
@@ -27,7 +27,7 @@ function ASR!(ifc3::Array{T,3}, N_atoms, D) where T
                         kk_self = D*(i-1) + γ 
 
                         ifc3[ii_self,jj_self,kk_self] = zero(T)
-                        ifc3[ii_self,jj_self,kk_self] = -sum(ifc3[ii_self,jj_self,γ:D:end]) 
+                        ifc3[ii_self,jj_self,kk_self] = @views -sum(ifc3[ii_self,jj_self,γ:D:end]) 
                     end
                 end
             end
@@ -44,8 +44,8 @@ function asr_satisfied(ifc2::AbstractArray{T,2}, N_atoms, D, tol; verbose = fals
     Threads.@threads for i in range(1,N_atoms)
         for α in range(1,D)
             for β in range(1,D)
-                s = sum(ifc2[D*(i-1) + α, β:D:end])
-                if sum(ifc2[D*(i-1) + α, β:D:end]) > tol
+                s = @views sum(ifc2[D*(i-1) + α, β:D:end])
+                if s > tol
                     satisfied = false
                     verbose && println("Set i = $i, α = $α, β = $β does not satisfy ASR. Sum was: $s")
                 end
