@@ -52,7 +52,7 @@ function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::Stillinger
         rᵢₖ = similar(sys.atoms.position[1])
         nearest_j = similar(sys.atoms.position[1])
         nearest_k = similar(sys.atoms.position[1])
-        r_arr = Vector{Float64}(undef, D*D)
+        r_arr = Vector{T}(undef, D*D)
         for j in range(1, N_atoms)
             if i != j
                 rᵢⱼ .= sys.atoms.position[i] .- sys.atoms.position[j]
