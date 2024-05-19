@@ -1,20 +1,20 @@
 export StillingerWeberSilicon
 
-struct SW_Params{E,S}
+struct SW_Params{E,S,T}
     ϵ::E #ep has energy units
     σ::S #simga has length units
-    a::Float64 #cutoff = a*sigma
-    λ::Float64
-    γ::Float64
-    cosθ₀::Float64
-    A::Float64
-    B::Float64
-    p::Float64
-    q::Float64
+    a::T #cutoff = a*sigma
+    λ::T
+    γ::T
+    cosθ₀::T
+    A::T
+    B::T
+    p::T
+    q::T
 end
 
 function SW_Params(ϵ, σ, a, λ, γ, cosθ₀, A, B , p, q)
-    return SW_Params{typeof(ϵ), typeof(σ)}(ϵ, σ, a, λ, γ, cosθ₀,
+    return SW_Params{typeof(ϵ), typeof(σ), typeof(a)}(ϵ, σ, a, λ, γ, cosθ₀,
                                              A, B , p, q)
 end
 
@@ -26,14 +26,14 @@ struct StillingerWeberSilicon{R,GS,LE} <: ThreeBodyPotential
 end
 
 
-function StillingerWeberSilicon(; units = true)
+function StillingerWeberSilicon(; units = true, T = Float64)
     #From LAMMPS Si.sw file
     if units
-        sws_params = SW_Params(2.1683u"eV", 2.0951u"Å", 1.80, 21.0, 1.20,
-            -0.333333333333, 7.049556277,  0.6022245584,  4.0,  0.0)
+        sws_params = SW_Params(T(2.1683)u"eV", T(2.0951)u"Å", T(1.80), T(21.0), T(1.20),
+            T(-1/3), T(7.049556277),  T(0.6022245584),  T(4.0),  T(0.0))
     else
-        sws_params = SW_Params(2.1683, 2.0951, 1.80, 21.0, 1.20,
-        -0.333333333333, 7.049556277,  0.6022245584,  4.0,  0.0)
+        sws_params = SW_Params(T(2.1683), T(2.0951), T(1.80), T(21.0), T(1.20),
+        T(-1/3), T(7.049556277),  T(0.6022245584),  T(4.0),  T(0.0))
     end
     r_cut = sws_params.a*sws_params.σ
     gamma_sigma = sws_params.σ*sws_params.γ
