@@ -63,8 +63,8 @@ function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::Stillinger
                     #Two body term only contributes to ij and ji blocks
                     if j > i
                         block .= -H2_exec_pair(ustrip.(rᵢⱼ))
-                        IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
-                        IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= block
+                        @views IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
+                        @views IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= block
                     end
 
                     #Three body terms between atoms i,j,k
@@ -81,17 +81,17 @@ function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::Stillinger
                                 #contribution to ij derivative block
                                 r_arr .= ustrip.([sys.atoms.position[i]; nearest_j; nearest_k])
                                 block .= H2_exec_ij(r_arr)
-                                IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
-                                IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= permutedims!(block2, block, (2,1))
+                                @views IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= block
+                                @views IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= permutedims!(block2, block, (2,1))
 
                                 #contribution to ik derivative block
                                 block .= H2_exec_ik(r_arr)
-                                IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
-                                IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= permutedims!(block2, block, (2,1))
+                                @views IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
+                                @views IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(i-1) + 1 : D*(i-1) + D] .+= permutedims!(block2, block, (2,1))
 
                                 block .= H2_exec_jk(r_arr)
-                                IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
-                                IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= permutedims!(block2, block, (2,1))
+                                @views IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(k-1) + 1 : D*(k-1) + D] .+= block
+                                @views IFC2[D*(k-1) + 1 : D*(k-1) + D, D*(j-1) + 1 : D*(j-1) + D] .+= permutedims!(block2, block, (2,1))
                             end
                         end
                     end

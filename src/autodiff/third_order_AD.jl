@@ -177,9 +177,9 @@ end
 
 function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange, block)
 
-    arr[rng1,rng1,rng2] .+= block
-    arr[rng1,rng2,rng1] .+= block
-    arr[rng2,rng1,rng1] .+= block
+    @views arr[rng1,rng1,rng2] .+= block
+    @views arr[rng1,rng2,rng1] .+= block
+    @views arr[rng2,rng1,rng1] .+= block
 
     return arr
 
@@ -188,9 +188,9 @@ end
 #aab terms
 function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange, block, block2)
 
-    arr[rng1,rng1,rng2] .+= block
-    arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (1,3,2))
-    arr[rng2,rng1,rng1] .+= permutedims!(block2, block, (3,2,1))
+    @views arr[rng1,rng1,rng2] .+= block
+    @views arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (1,3,2))
+    @views arr[rng2,rng1,rng1] .+= permutedims!(block2, block, (3,2,1))
 
     return arr
 
@@ -199,9 +199,9 @@ end
 #abb terms
 function set_third_order_terms_alt!(arr, rng1::UnitRange, rng2::UnitRange, block, block2)
 
-    arr[rng2,rng1,rng1] .+= block
-    arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (2,1,3))
-    arr[rng1,rng1,rng2] .+= permutedims!(block2, block, (3,2,1))
+    @views arr[rng2,rng1,rng1] .+= block
+    @views arr[rng1,rng2,rng1] .+= permutedims!(block2, block, (2,1,3))
+    @views arr[rng1,rng1,rng2] .+= permutedims!(block2, block, (3,2,1))
 
     return arr
 
@@ -210,12 +210,12 @@ end
 function set_third_order_terms!(arr, rng1::UnitRange, rng2::UnitRange,
     rng3::UnitRange, block, block2)
 
-   arr[rng1,rng2,rng3] .+= block
-   arr[rng1,rng3,rng2] .+= permutedims!(block2, block, (1,3,2)) 
-   arr[rng2,rng1,rng3] .+= permutedims!(block2, block, (2,1,3))
-   arr[rng2,rng3,rng1] .+= permutedims!(block2, block, (2,3,1))
-   arr[rng3,rng1,rng2] .+= permutedims!(block2, block, (3,1,2))
-   arr[rng3,rng2,rng1] .+= permutedims!(block2, block, (3,2,1))
+   @views arr[rng1,rng2,rng3] .+= block
+   @views arr[rng1,rng3,rng2] .+= permutedims!(block2, block, (1,3,2)) 
+   @views arr[rng2,rng1,rng3] .+= permutedims!(block2, block, (2,1,3))
+   @views arr[rng2,rng3,rng1] .+= permutedims!(block2, block, (2,3,1))
+   @views arr[rng3,rng1,rng2] .+= permutedims!(block2, block, (3,1,2))
+   @views arr[rng3,rng2,rng1] .+= permutedims!(block2, block, (3,2,1))
 
    return arr
 
