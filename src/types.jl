@@ -61,7 +61,6 @@ positions_1D(sys::SuperCellSystem) = reduce(vcat, positions(sys))
 charges(sys::SuperCellSystem) = hasatomkey(sys, :charge) ? sys.atoms.charge : throw(ArgumentError("Charge is not a key"))
 charge(sys::SuperCellSystem, i::Integer) =  hasatomkey(sys, :charge) ? sys.atoms.charge[i] : throw(ArgumentError("Charge is not a key"))
 n_atoms(sys::SuperCellSystem) = length(sys.atoms)
-length(sys::SuperCellSystem) = n_atoms(sys)
 volume(sys::SuperCellSystem) = prod(sys.box_sizes_SC)
 #######################################################
 
