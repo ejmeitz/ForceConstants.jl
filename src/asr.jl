@@ -1,8 +1,9 @@
 export ASR!, asr_satisfied
 
-function ASR!(ifc2::Matrix{T}, N_atoms, D) where T
+function ASR!(ifc2::Matrix{T}, N_atoms, D; n_threads::Int = Threads.nthreads()) where T
 
-    Threads.@threads for i in range(1, N_atoms) # index of block matrix
+    @tasks for i in range(1, N_atoms) # index of block matrix
+        @set ntasks = n_threads
         for α in range(1,D)
             for β in range(1,D)
                 ii = D*(i-1) + α
@@ -15,9 +16,10 @@ function ASR!(ifc2::Matrix{T}, N_atoms, D) where T
     return ifc2
 end
 
-function ASR!(ifc3::Array{T,3}, N_atoms, D) where T
+function ASR!(ifc3::Array{T,3}, N_atoms, D; n_threads::Int = Threads.nthreads()) where T
     #Loop all self terms
-    Threads.@threads for i in range(1,N_atoms)
+    @tasks for i in range(1,N_atoms)
+        @set ntasks = n_threads
         for j in range(1,N_atoms)
             for α in range(1,D)
                 ii_self = D*(i-1) + α

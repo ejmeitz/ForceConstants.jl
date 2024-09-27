@@ -2,7 +2,7 @@ export third_order, third_order!, mass_weight_third_order!
 
 
 function third_order!(Ψ::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotential,
-    calc::AnalyticalCalculator) where {T,D}
+    calc::AnalyticalCalculator; n_threads::Int = Threads.nthreads()) where {T,D}
 
     @assert all(pot.r_cut .< sys.box_sizes_SC) "Cutoff larger than L/2"
     N_atoms = n_atoms(sys)
@@ -11,8 +11,9 @@ function third_order!(Ψ::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotentia
     r_cut_sq = calc.r_cut*calc.r_cut
 
     # pot is pair potential only loop atomic pairs
-    Threads.@threads for i in range(1,N_atoms)
-        r = zeros(D)*unit(sys.atoms.position[1][1]) #pre-allocate per thread
+    @tasks for i in range(1,N_atoms)
+        @set ntasks = n_threads
+        @local r = zeros(D)*unit(sys.atoms.position[1][1])
         for j in range(i+1,N_atoms)
 
             #i,i,j terms
@@ -61,7 +62,7 @@ function third_order!(Ψ::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotentia
     end
 
     #Self terms
-    Ψ = ASR!(Ψ, N_atoms, D)
+    Ψ = ASR!(Ψ, N_atoms, D; n_threads = n_threads)
 
     return Ψ
     

@@ -1,17 +1,19 @@
 export second_order, second_order!
 
 function second_order!(IFC2, sys::SuperCellSystem{D}, pot::PairPotential,
-    calc::AnalyticalCalculator) where D
+    calc::AnalyticalCalculator; n_threads = Threads.nthreads()) where D
 
     N_atoms = n_atoms(sys)
     @assert size(IFC2) == (D*N_atoms,D*N_atoms)
     r_cut_sq = calc.r_cut*calc.r_cut
 
     #Loop block matricies above diagonal (not including diagonal)
-    for i in range(1,N_atoms)
+    @tasks for i in range(1,N_atoms)
+        @set ntasks = n_threads
+        @local rᵢⱼ = zeros(D)*unit(sys.atoms.position[1][1])
         for j in range(i+1,N_atoms)
 
-            rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
+            rᵢⱼ .= sys.atoms.position[i] .- sys.atoms.position[j]
             rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
             dist_sq = sum(x -> x^2, rᵢⱼ)
 
@@ -33,15 +35,7 @@ function second_order!(IFC2, sys::SuperCellSystem{D}, pot::PairPotential,
     end
 
     #Acoustic Sum Rule -- Loop D x D block matricies on diagonal of IFC2
-    for i in range(1, N_atoms) # index of block matrix
-        for α in range(1,D)
-            for β in range(1,D)
-                ii = D*(i-1) + α
-                jj = D*(i-1) + β # i == j because we're on diagonal
-                IFC2[ii,jj] = -1*sum(IFC2[ii, β:D:end])
-            end
-        end
-    end
+    IFC2 = ASR!(IFC2, N_atoms, D; n_threads = n_threads)
 
     return IFC2
 

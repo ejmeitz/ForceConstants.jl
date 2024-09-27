@@ -106,6 +106,36 @@ end
 
 end
 
+@testset "LJ Values" begin
+    
+    crys = FCC(5.2468u"Å", :Ar, SVector(4,4,4))
+    sys = SuperCellSystem(crys);
+
+    tol = 1e-8
+    pot = LJ(3.4u"Å", 0.24037u"kcal/mol", 8.5u"Å")
+    calc = AnalyticalCalculator(tol, pot.r_cut)
+
+    ifc2 = second_order(sys, pot, calc)
+    @test ifc2[1,1] ≈ 7.727196175
+    @test ifc2[2,2] ≈ 7.727196175
+    @test ifc2[3,3] ≈ 7.727196175
+    @test ifc2[4,1] ≈ -1.02002707
+    @test ifc2[4,2] ≈ -1.06589524
+    @test asr_satisfied(ifc2.values, n_atoms(sys), 3, tol)
+    @test issymmetric(ifc2.values)
+
+    ifc3 = third_order(sys, pot, calc)
+    @test ifc3[1,1,1] ≈ 0.0
+    @test ifc3[4,1,1] ≈ -3.167167895
+    @test ifc3[4,2,1] ≈ -3.979773863
+    @test ifc3[4,4,1] ≈ 3.167167895
+    @test ifc3[5,5,1] ≈ 3.979773863
+    @test ifc3[6,6,1] ≈ -0.406302984
+    @test ifc3[4,1,2] ≈ -3.979773863
+
+end
+
+
 @testset "LJ (FD, AD, Analytical)" begin
     
     pot = LJ(3.4u"Å", 0.24037u"kcal * mol^-1", 8.5u"Å")

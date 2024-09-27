@@ -11,6 +11,7 @@ DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 FastDifferentiation = "eb9bf01b-bf85-4b60-bf87-ee5de06c00be"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+OhMyThreads = "67456a42-1dca-4109-a031-0a68de7e3ad5"
 RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 SimpleCrystals = "64031d72-e220-11ed-1a7e-43a2532b2fa8"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -22,8 +23,8 @@ cuTENSOR = "011b41b2-24ef-40a8-b3eb-fa098493e9e1"
 
 [compat]
 SimpleCrystals = "0.2.0"
-TensorOperations = "4,5"
 Symbolics = "6"
+TensorOperations = "4,5"
 julia = "1.9"
 
 [extras]
