@@ -1,12 +1,13 @@
 export second_order, third_order
 
 function second_order(sys::SuperCellSystem{D}, pot::Potential, 
-    calc::ForceConstantCalculator; check_asr = false, check_symmetry = false) where D
+    calc::ForceConstantCalculator; n_threads::Int = Threads.nthreads(),
+    check_asr = false, check_symmetry = false) where D
 
     N_atoms = n_atoms(sys)
     Φ = zeros(D*N_atoms,D*N_atoms)
 
-    second_order!(Φ, sys, pot, calc)
+    second_order!(Φ, sys, pot, calc; n_threads = n_threads)
 
     Φ = apply_tols!(Φ, calc.tol)
 
@@ -17,12 +18,13 @@ function second_order(sys::SuperCellSystem{D}, pot::Potential,
 end
 
 function third_order(sys::SuperCellSystem{D}, pot::Potential,
-    calc::ForceConstantCalculator; check_asr = false) where D
+    calc::ForceConstantCalculator; n_threads::Int = Threads.nthreads(),
+    check_asr = false) where D
 
     N_atoms = n_atoms(sys)
     Ψ = zeros(D*N_atoms, D*N_atoms, D*N_atoms)
  
-    third_order!(Ψ, sys, pot, calc)
+    third_order!(Ψ, sys, pot, calc; n_threads = n_threads)
 
     Ψ = apply_tols!(Ψ, calc.tol)
 

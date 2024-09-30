@@ -1,14 +1,15 @@
 export second_order_finite_diff_single
 
 function second_order!(IFC2::Matrix{T}, sys_eq::SuperCellSystem{D}, pot::Potential,
-    calc::FiniteDiffCalculator) where {T,D}
+    calc::FiniteDiffCalculator; n_threads = Threads.nthreads()) where {T,D}
 
     N_atoms = n_atoms(sys_eq)
 
     r_cut_sq = calc.r_cut*calc.r_cut
 
-    Threads.@threads for i in range(1, N_atoms)
-        rᵢⱼ = similar(sys_eq.atoms.position[1])
+    @tasks for i in range(1, N_atoms)
+        @set ntasks = n_threads
+        @local rᵢⱼ = similar(sys_eq.atoms.position[1])
         #Give each thread a unique copy of positions
         #* has to be a more efficient way to make this thread safe
         posns = deepcopy(positions(sys_eq))
@@ -33,7 +34,7 @@ function second_order!(IFC2::Matrix{T}, sys_eq::SuperCellSystem{D}, pot::Potenti
         end 
     end
 
-    ASR!(IFC2, N_atoms, D)
+    ASR!(IFC2, N_atoms, D; n_threads = n_threads)
 
     return IFC2
 

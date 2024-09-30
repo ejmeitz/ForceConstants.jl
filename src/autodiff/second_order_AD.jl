@@ -1,5 +1,5 @@
 function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::PairPotential,
-      calc::AutoDiffCalculator) where {T,D}
+      calc::AutoDiffCalculator; n_threads::Int = Threads.nthreads()) where {T,D}
 
     @assert calc.r_cut <= pot.r_cut "Calculator r_cut must be less than potential r_cut"  
 
@@ -12,10 +12,12 @@ function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::PairPotent
 
     N_atoms = n_atoms(sys)
 
-    for i in range(1, N_atoms)
+    @tasks for i in range(1, N_atoms)
+        @set ntasks = n_threads
+        @local rᵢⱼ = zeros(D)*unit(sys.atoms.position[1][1])
         for j in range(i + 1, N_atoms)
 
-            rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
+            rᵢⱼ .= sys.atoms.position[i] .- sys.atoms.position[j]
             rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
             dist_ij_sq = sum(x -> x^2, rᵢⱼ)
 
@@ -28,14 +30,14 @@ function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::PairPotent
         end
     end
 
-    ASR!(IFC2, N_atoms, D)
+    ASR!(IFC2, N_atoms, D; n_threads = n_threads)
 
     return IFC2
 
 end
 
 function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
-     calc::AutoDiffCalculator) where {D,T}
+     calc::AutoDiffCalculator; n_threads::Int = Threads.nthreads()) where {D,T}
 
     @assert calc.r_cut <= pot.r_cut "For SW silicon force constant 
         cutoff must be less than potential cutoff"
@@ -102,7 +104,7 @@ function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::Stillinger
     end
 
     #Acoustic Sum Rule
-    ASR!(IFC2, N_atoms, D)
+    ASR!(IFC2, N_atoms, D, n_threads = n_threads)
     
     return IFC2
 

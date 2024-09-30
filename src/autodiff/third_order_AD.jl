@@ -1,5 +1,5 @@
 function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotential,
-      calc::AutoDiffCalculator) where {T,D}
+      calc::AutoDiffCalculator; n_threads::Int = Threads.nthreads()) where {T,D}
 
     vars = make_variables(:r, D)
     r_norm = sqrt(sum(x -> x^2, vars))
@@ -12,10 +12,12 @@ function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotent
     N_atoms = n_atoms(sys)
     r_cut_sq = calc.r_cut*calc.r_cut
 
-    Threads.@threads for i in range(1, N_atoms)
+    @tasks for i in range(1, N_atoms)
+        @set ntasks = n_threads
+        @local rᵢⱼ = zeros(D)*unit(sys.atoms.position[1][1])
         for j in range(i + 1, N_atoms)
 
-            rᵢⱼ = sys.atoms.position[i] .- sys.atoms.position[j]
+            rᵢⱼ .= sys.atoms.position[i] .- sys.atoms.position[j]
             rᵢⱼ = nearest_mirror!(rᵢⱼ, sys.box_sizes_SC)
             dist_ij_sq = sum(x -> x^2, rᵢⱼ)
 
@@ -59,7 +61,7 @@ function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotent
     end
 
     #Acoustic Sum Rule
-    ASR!(IFC3, N_atoms, D)
+    ASR!(IFC3, N_atoms, D; n_threads = n_threads)
 
     return IFC3
 
@@ -67,7 +69,7 @@ end
 
 
 function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::StillingerWeberSilicon,
-     calc::AutoDiffCalculator) where {T,D}
+     calc::AutoDiffCalculator; n_threads = Threads.nthreads()) where {T,D}
 
      @assert calc.r_cut <= pot.r_cut "For AutoDiff SW silicon force constant 
         cutoff must be less than potential cutoff"
@@ -161,7 +163,7 @@ function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::Stillinger
         end
     end
 
-    IFC3 = ASR!(IFC3, N_atoms, D)
+    IFC3 = ASR!(IFC3, N_atoms, D; n_threads = n_threads)
 
     return IFC3
 
