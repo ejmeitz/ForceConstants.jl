@@ -30,6 +30,7 @@ The last thing required to calculate force constants is a system which contains 
 using ForceConstants
 using SimpleCrystals
 using Unitful
+using StaticArrays
 
 ##############
 # LJ EXAMPLE #
