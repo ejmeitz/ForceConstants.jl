@@ -14,9 +14,9 @@ using Combinatorics
 using OhMyThreads
 
 #*only needed by AD parts
-using FastDifferentiation
+# using FastDifferentiation
 using Symbolics
-using RuntimeGeneratedFunctions
+# using RuntimeGeneratedFunctions
 
 using cuTENSOR
 using CUDA
@@ -31,7 +31,10 @@ include("helper_funcs.jl")
 include("asr.jl")
 
 sw_generated_dir = joinpath(@__DIR__, "autodiff", "generated_derivatives", "SW")
+lj_generated_dir = joinpath(@__DIR__, "autodiff", "generated_derivatives", "LJ")
 include.(filter(contains(r".jl$"), readdir(sw_generated_dir; join=true)))
+include.(filter(contains(r".jl$"), readdir(lj_generated_dir; join=true)))
+
 # include("./autodiff/autodiff_helper.jl")
 include("./autodiff/second_order_AD.jl")
 include("./autodiff/third_order_AD.jl")

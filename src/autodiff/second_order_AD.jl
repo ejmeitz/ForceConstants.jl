@@ -1,15 +1,15 @@
-function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::PairPotential,
+function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::LJ,
       calc::AutoDiffCalculator; n_threads::Int = Threads.nthreads()) where {T,D}
 
     @assert calc.r_cut <= pot.r_cut "Calculator r_cut must be less than potential r_cut"  
 
-    vars = make_variables(:r, D)
-    r_norm = sqrt(sum(x -> x^2, vars))
-    pot_symbolic = potential_nounits(pot, r_norm)
-    H_symbolic = hessian(pot_symbolic, vars)
-    H_exec = make_function(H_symbolic, vars)
+    # vars = make_variables(:r, D)
+    # r_norm = sqrt(sum(x -> x^2, vars))
+    # pot_symbolic = potential_nounits(pot, r_norm)
+    # H_symbolic = hessian(pot_symbolic, vars)
+    # H_exec = make_function(H_symbolic, vars)
+    
     r_cut_sq = calc.r_cut*calc.r_cut
-
     N_atoms = n_atoms(sys)
 
     @tasks for i in range(1, N_atoms)
@@ -22,7 +22,7 @@ function second_order!(IFC2::Matrix{T}, sys::SuperCellSystem{D}, pot::PairPotent
             dist_ij_sq = sum(x -> x^2, rᵢⱼ)
 
             if dist_ij_sq < r_cut_sq
-                ij_block = -H_exec(ustrip.(rᵢⱼ))
+                ij_block = -H2_exec_LJ(ustrip.(rᵢⱼ))
 
                 IFC2[D*(i-1) + 1 : D*(i-1) + D, D*(j-1) + 1 : D*(j-1) + D] .= ij_block
                 IFC2[D*(j-1) + 1 : D*(j-1) + D, D*(i-1) + 1 : D*(i-1) + D] .= ij_block

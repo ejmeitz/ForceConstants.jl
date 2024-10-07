@@ -1,13 +1,13 @@
-function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotential,
+function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::LJ,
       calc::AutoDiffCalculator; n_threads::Int = Threads.nthreads()) where {T,D}
 
-    vars = make_variables(:r, D)
-    r_norm = sqrt(sum(x -> x^2, vars))
-    pot_symbolic = potential_nounits(pot, r_norm)
-    H_symbolic = hessian(pot_symbolic, vars)
+    # vars = make_variables(:r, D)
+    # r_norm = sqrt(sum(x -> x^2, vars))
+    # pot_symbolic = potential_nounits(pot, r_norm)
+    # H_symbolic = hessian(pot_symbolic, vars)
 
-    third_order_symbolic = reshape(jacobian(vec(H_symbolic), vars),(D,D,D))
-    TO_exec = make_function(third_order_symbolic, vars)
+    # third_order_symbolic = reshape(jacobian(vec(H_symbolic), vars),(D,D,D))
+    # TO_exec = make_function(third_order_symbolic, vars)
 
     N_atoms = n_atoms(sys)
     r_cut_sq = calc.r_cut*calc.r_cut
@@ -23,7 +23,7 @@ function third_order!(IFC3::Array{T,3}, sys::SuperCellSystem{D}, pot::PairPotent
 
             if dist_ij_sq < r_cut_sq
                 
-               iij_block = -TO_exec(ustrip.(rᵢⱼ))
+               iij_block = -H3_exec_LJ(ustrip.(rᵢⱼ)) #*this allocates
 
                #i,i,j terms
                IFC3[D*(i-1) + 1 : D*(i-1) + D,
