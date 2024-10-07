@@ -50,7 +50,7 @@ calc_analytical_lj = AnalyticalCalculator(tol, pot_lj.r_cut)
 ifc2_AD = second_order(sys_lj, pot_lj, calc_AD_lj)
 ifc2_analytical = second_order(sys_lj, pot_lj, calc_analytical_lj)
 ifc3_AD = third_order(sys_lj, pot_lj, calc_AD_lj)
-ifc3_analytical_lj = third_order(sys_lj, pot_lj, calc_analytical_lj)
+ifc3_analytical = third_order(sys_lj, pot_lj, calc_analytical_lj)
 
 isapprox(ifc2_analytical.values, ifc2_AD.values, atol = 1e-12)
 isapprox(ifc3_analytical.values, ifc3_AD.values, atol = 1e-12)
