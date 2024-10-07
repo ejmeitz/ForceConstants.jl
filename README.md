@@ -1,6 +1,6 @@
 # ForceConstants.jl
 
-This package contains code to calculate interatomic force consatnts for pair and three-body potentials. Analytical derivatives up to third order are provided for pair potentials. Automatic differentiation can also be used for pair potentials, and must be used for three-body potentials. Currently, only 12-6 Lennard-Jones and Stillinger-Weber silicon are implemented and validated. Other potentials could be implemented and used in this framework though.
+This package contains code to calculate interatomic force consatnts for pair and three-body potentials. Analytical derivatives up to third order are provided for pair potentials (fastest). Automatic differentiation can also be used for pair potentials, and must be used for three-body potentials. Currently, only 12-6 Lennard-Jones and Stillinger-Weber silicon are implemented and validated. Other potentials could be implemented and used in this framework though.
 
 Due to a bug in the automatic differentiation library, the third order force constants for Stillinger-Weber take a long time to compile. This code is not meant to compete with existing codes like PhonoPy or ALAMODE, rather it accompanies a paper which will be released soon.
 
