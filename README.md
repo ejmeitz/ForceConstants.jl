@@ -2,7 +2,7 @@
 
 This package contains code to calculate interatomic force consatnts for pair and three-body potentials. Analytical derivatives up to third order are provided for pair potentials (fastest). Automatic differentiation can also be used for pair potentials, and must be used for three-body potentials. Currently, only 12-6 Lennard-Jones and Stillinger-Weber silicon are implemented and validated. Other potentials could be implemented and used in this framework though. 
 
-### Important Notes:
+## Important Notes:
 - Due to a bug in the automatic differentiation library, the third order force constants for Stillinger-Weber take a long time to compile. Once it compiles the code is fast.
 - The code for calculating force constants is generic, but is currently can only dispatch to Lennard-Jones and Stillinger-Weber to circumvent a bug in the AD library.
 - The force constant cutoff when using AD should just be the cutoff of the potential, there is no need to check convergence w.r.t. the cutoff.
@@ -20,21 +20,23 @@ To calculate third-order modal coupling consatnts, the following functions are p
 - `mcc3((Ψ_mass_weighted::CuArray{Float32, 3}, phi::CuArray{Float32, 2})`
 - `mcc3(Ψ_mass_weighted::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int)`
 
--------------------------
+#### Force Constant Calculators:
 There are two kinds of `ForceConstantCalculator`:
 - `AnalyticalCalculator(tol, r_cut)`
 - `AutoDiffCalculator(tol, r_cut)`
--------------------------
+
+#### Interatomic Potentials
 There are two potentials implemented already:
 - `LJ(σ, ϵ, r_cut)`
 - `StillingerWeberSilicon(; units = true, T = Float64)`
   - The `units` flag controls whether or not Unitful units are used, and `T` controls the precision of the SW parameters
- -------------------------
+
+#### System Configuration
 The last thing required to calculate force constants is a system which contains the atomic positions. The `SuperCellSystem` type has three constructors:
 - `SuperCellSystem(positions::AbstractVector{<:AbstractVector}, masses::AbstractVector, box_sizes::AbstractVector, charges = zeros(length(masses))*u"q")`
 - `SuperCellSystem(crystal::Crystal{D})`
 - `SuperCellSystem(df::DataFrame, masses::AbstractVector, box_sizes::AbstractVector, x_col, y_col, z_col; charges = zeros(length(masses))*u"q")`
--------------------------
+
 ### Lennard-Jones Example:
 ```julia
 using ForceConstants
