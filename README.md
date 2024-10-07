@@ -4,20 +4,27 @@ This package contains code to calculate interatomic force consatnts for pair and
 
 Due to a bug in the automatic differentiation library, the third order force constants for Stillinger-Weber take a long time to compile. This code is not meant to compete with existing codes like PhonoPy or ALAMODE, rather it accompanies a paper which will be released soon.
 
-The only functions you should need to call are:
-`second_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
-`third_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
+The main functions provided by this library are:
+- `second_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
+- `third_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
+
 These return a `DenseForceConstants` object which contains the ifc values, unit and tolerance. These can be accessed with `.values, .units, .tol`. 
 
+-------------------------
 There are two kinds of `ForceConstantCalculator`:
-`AnalyticalCalculator(tol, r_cut)`
-`AutoDiffCalculator(tol, r_cut)`
-
+- `AnalyticalCalculator(tol, r_cut)`
+- `AutoDiffCalculator(tol, r_cut)`
+-------------------------
 There are two potentials implemented already:
-`LJ(σ, ϵ, r_cut)`
-`StillingerWeberSilicon(; units = true, T = Float64)`
-the `units` flag controls whether or not Unitful units are used, and `T` controls the precision of the SW parameters
-
+- `LJ(σ, ϵ, r_cut)`
+- `StillingerWeberSilicon(; units = true, T = Float64)`
+  - The `units` flag controls whether or not Unitful units are used, and `T` controls the precision of the SW parameters
+ -------------------------
+The last thing required to calculate force constants is a system which contains the atomic positions. The `SuperCellSystem` type has three constructors:
+- `SuperCellSystem(positions::AbstractVector{<:AbstractVector}, masses::AbstractVector, box_sizes::AbstractVector, charges = zeros(length(masses))*u"q")`
+- `SuperCellSystem(crystal::Crystal{D})`
+- `SuperCellSystem(df::DataFrame, masses::AbstractVector, box_sizes::AbstractVector, x_col, y_col, z_col; charges = zeros(length(masses))*u"q")`
+-------------------------
 ### Lennard-Jones Example:
 ```julia
 using ForceConstants
@@ -60,8 +67,8 @@ calc_AD_sw = AutoDiffCalculator(tol, pot_sw.r_cut)
 ifc2_AD_sw = second_order(sys_sw, pot_sw, calc_AD_sw)
 ifc3_AD_sw = third_order(sys_sw, pot_sw, calc_AD_sw) # this will take awhile to compile the first time you run it.
 ```
-
-There are also `second_order!` and `third_order!` which allow you to pass your own storage if you want to re-use memory.
+-------------------------
+There are also `second_order!` and `third_order!` which allow you to pass your own storage if you want to re-use memory. A `DenseForceConstants` object will not be returned by these functions, just whatever storage they were provided.
 ```julia
 pot = LJ(3.4u"Å", 0.24037u"kcal * mol^-1", 8.5u"Å")
 fcc_crystal = FCC(5.2468u"Å", :Ar, SVector(4,4,4)) #from SimpleCrystals.jl
@@ -73,5 +80,5 @@ calc_analytical = AnalyticalCalculator(1e-12, pot.r_cut)
 # Pre-allocate IFC storage
 ifc2 = zeros(Float64, 3*n_atoms(sys), 3*n_atoms(sys))
 
-second_order!(ifc2, sys, pot, calc_analytical) # this just returns a matrix instead of the custom typ
+second_order!(ifc2, sys, pot, calc_analytical) # this modifies `ifc2` in place
 ```
