@@ -15,6 +15,10 @@ The main functions provided by this library are:
 
 These return a `DenseForceConstants` object which contains the ifc values, unit and tolerance. These can be accessed with `.values, .units, .tol`. 
 
+To calculate third-order modal coupling consatnts, the following functions are provided which only run on CUDA GPUs. The second method with `block_size` is provided to break up the calculation to reduce RAM usage. `block_size` must be a multiple of the tensor dimension.
+- `mcc3((Ψ_mass_weighted::CuArray{Float32, 3}, phi::CuArray{Float32, 2})`
+- `mcc3(Ψ_mass_weighted::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int)`
+
 -------------------------
 There are two kinds of `ForceConstantCalculator`:
 - `AnalyticalCalculator(tol, r_cut)`
