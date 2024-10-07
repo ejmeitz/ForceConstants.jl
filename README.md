@@ -11,6 +11,7 @@ This package contains code to calculate interatomic force consatnts for pair and
 ### API
 The main functions provided by this library are:
 - `second_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
+- `dynamical_matrix(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator)`
 - `third_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
 
 These return a `DenseForceConstants` object which contains the ifc values, unit and tolerance. These can be accessed with `.values, .units, .tol`. 
@@ -76,6 +77,22 @@ calc_AD_sw = AutoDiffCalculator(tol, pot_sw.r_cut)
 
 ifc2_AD_sw = second_order(sys_sw, pot_sw, calc_AD_sw)
 ifc3_AD_sw = third_order(sys_sw, pot_sw, calc_AD_sw) # this will take awhile to compile the first time you run it.
+
+###################################
+# Modal Coupling Constant Example #
+###################################
+
+dynmat = dynamical_matrix(sys_lj, pot_lj, calc_analytical) # could just divide ifc2 by 39.95 as well
+freqs_sq, phi = get_modes(dynmat)
+
+# Mass weight third_order IFCs (modifies the earlier IFCs)
+mass_weight_third_order!(ifc3_analytical, masses(sys_lj))
+
+# Move to GPU
+cuPhi = CuArray{Float32}(phi) # eigenvectors/mode shapes
+cuPsi_mw = CuArray{Float32}(ifc3_analytical)
+
+K3 = mcc3(cuPsi_mw, cuPhi_mw, 256) # there are 768 DoF, so 256 chosen to make calculation smaller
 ```
 -------------------------
 There are also `second_order!` and `third_order!` which allow you to pass your own storage if you want to re-use memory. A `DenseForceConstants` object will not be returned by these functions, just whatever storage they were provided.
@@ -92,3 +109,4 @@ ifc2 = zeros(Float64, 3*n_atoms(sys), 3*n_atoms(sys))
 
 second_order!(ifc2, sys, pot, calc_analytical) # this modifies `ifc2` in place
 ```
+
