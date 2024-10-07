@@ -4,7 +4,7 @@ This package contains code to calculate interatomic force consatnts for pair and
 
 ### Important Notes:
 - Due to a bug in the automatic differentiation library, the third order force constants for Stillinger-Weber take a long time to compile. Once it compiles the code is fast.
-- The code for calculating force constants is generic, but is currently hard coded for Lennard-Jones and Stillinger-Weber due to circumvent a bug in the AD library.
+- The code for calculating force constants is generic, but is currently can only dispatch to Lennard-Jones and Stillinger-Weber to circumvent a bug in the AD library.
 - The force constant cutoff when using AD should just be the cutoff of the potential, there is no need to check convergence w.r.t. the cutoff.
 - This code does not take advantage of crystal symmetries and is not meant to compete with existing codes like PhonoPy or ALAMODE. This code is intented for calculating instantaneous force constants. A paper describing the method will be released soon.
 
