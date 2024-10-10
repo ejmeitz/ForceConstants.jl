@@ -8,35 +8,6 @@ This package contains code to calculate interatomic force consatnts for pair and
 - The force constant cutoff when using AD should just be the cutoff of the potential, there is no need to check convergence w.r.t. the cutoff.
 - This code does not take advantage of crystal symmetries and is not meant to compete with existing codes like PhonoPy or ALAMODE. This code is intented for calculating instantaneous force constants. A paper describing the method will be released soon.
 
-### API
-The main functions provided by this library are:
-- `second_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
-- `dynamical_matrix(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator)`
-- `third_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
-
-These return a `DenseForceConstants` object which contains the ifc values, unit and tolerance. These can be accessed with `.values, .units, .tol`. 
-
-To calculate third-order modal coupling consatnts, the following functions are provided which only run on CUDA GPUs. The second method with `block_size` is provided to break up the calculation to reduce RAM usage. `block_size` must be a multiple of the tensor dimension.
-- `mcc3((Ψ_mass_weighted::CuArray{Float32, 3}, phi::CuArray{Float32, 2})`
-- `mcc3(Ψ_mass_weighted::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int)`
-
-#### Force Constant Calculators:
-There are two kinds of `ForceConstantCalculator`:
-- `AnalyticalCalculator(tol, r_cut)`
-- `AutoDiffCalculator(tol, r_cut)`
-
-#### Interatomic Potentials
-There are two potentials implemented already:
-- `LJ(σ, ϵ, r_cut)`
-- `StillingerWeberSilicon(; units = true, T = Float64)`
-  - The `units` flag controls whether or not Unitful units are used, and `T` controls the precision of the SW parameters
-
-#### System Configuration
-The last thing required to calculate force constants is a system which contains the atomic positions. The `SuperCellSystem` type has three constructors:
-- `SuperCellSystem(positions::AbstractVector{<:AbstractVector}, masses::AbstractVector, box_sizes::AbstractVector, charges = zeros(length(masses))*u"q")`
-- `SuperCellSystem(crystal::Crystal{D})`
-- `SuperCellSystem(df::DataFrame, masses::AbstractVector, box_sizes::AbstractVector, x_col, y_col, z_col; charges = zeros(length(masses))*u"q")`
-
 ### Lennard-Jones Example:
 ```julia
 using ForceConstants
@@ -111,4 +82,33 @@ ifc2 = zeros(Float64, 3*n_atoms(sys), 3*n_atoms(sys))
 
 second_order!(ifc2, sys, pot, calc_analytical) # this modifies `ifc2` in place
 ```
+
+### API
+The main functions provided by this library are:
+- `second_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
+- `dynamical_matrix(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator)`
+- `third_order(sys::SuperCellSystem{D}, pot::Potential, calc::ForceConstantCalculator; n_threads = Threads.n_threads())`
+
+These return a `DenseForceConstants` object which contains the ifc values, unit and tolerance. These can be accessed with `.values, .units, .tol`. 
+
+To calculate third-order modal coupling consatnts, the following functions are provided which only run on CUDA GPUs. The second method with `block_size` is provided to break up the calculation to reduce RAM usage. `block_size` must be a multiple of the tensor dimension.
+- `mcc3((Ψ_mass_weighted::CuArray{Float32, 3}, phi::CuArray{Float32, 2})`
+- `mcc3(Ψ_mass_weighted::CuArray{Float32, 3}, phi::CuArray{Float32, 2}, block_size::Int)`
+
+#### Force Constant Calculators:
+There are two kinds of `ForceConstantCalculator`:
+- `AnalyticalCalculator(tol, r_cut)`
+- `AutoDiffCalculator(tol, r_cut)`
+
+#### Interatomic Potentials
+There are two potentials implemented already:
+- `LJ(σ, ϵ, r_cut)`
+- `StillingerWeberSilicon(; units = true, T = Float64)`
+  - The `units` flag controls whether or not Unitful units are used, and `T` controls the precision of the SW parameters
+
+#### System Configuration
+The last thing required to calculate force constants is a system which contains the atomic positions. The `SuperCellSystem` type has three constructors:
+- `SuperCellSystem(positions::AbstractVector{<:AbstractVector}, masses::AbstractVector, box_sizes::AbstractVector, charges = zeros(length(masses))*u"q")`
+- `SuperCellSystem(crystal::Crystal{D})`
+- `SuperCellSystem(df::DataFrame, masses::AbstractVector, box_sizes::AbstractVector, x_col, y_col, z_col; charges = zeros(length(masses))*u"q")`
 
