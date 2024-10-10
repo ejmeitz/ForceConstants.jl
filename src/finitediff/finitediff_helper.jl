@@ -1,11 +1,13 @@
+export energy_loop
 
 function energy_loop(pot::PairPotential, posns, box_sizes, N_atoms, r_cut)
 
     U_total = 0.0*energy_unit(pot)
 
+    r = similar(posns[1])
     for i in range(1,N_atoms)
         for j in range(i+1, N_atoms)             
-            r = posns[i] .- posns[j]
+            r .= posns[i] .- posns[j]
             nearest_mirror!(r, box_sizes)
             dist = norm(r)
             if dist < r_cut
