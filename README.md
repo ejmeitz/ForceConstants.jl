@@ -8,6 +8,13 @@ This package contains code to calculate interatomic force consatnts and third-or
 - The force constant cutoff when using AD should just be the cutoff of the potential, there is no need to check convergence w.r.t. the cutoff.
 - This code does not take advantage of crystal symmetries and is not meant to compete with existing codes like PhonoPy or ALAMODE. This code is intented for calculating instantaneous force constants. A paper describing the method will be released soon.
 
+## Installation
+This package is not in the general registry so to install use the command below. Please change `rev` to whatever the latest tag is to get up-to-date code!
+```julia
+using Pkg
+Pkg.add(url = "https://github.com/ejmeitz/ForceConstants.jl.git", rev = "v0.1.3")
+```
+
 ### Lennard-Jones Example:
 ```julia
 using ForceConstants
