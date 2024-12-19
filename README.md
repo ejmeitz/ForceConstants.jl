@@ -66,9 +66,10 @@ dynmat = dynamical_matrix(sys_lj, pot_lj, calc_analytical_lj) # could just divid
 freqs_sq, phi = get_modes(dynmat)
 
 # Mass weight third_order IFCs (modifies the earlier IFCs)
-mass_weight_third_order!(ifc3_analytical, masses(sys_lj))
+mass_weight_third_order!(ifc3_analytical, ustrip.(masses(sys_lj)))
 
 # Move to GPU
+using CUDA
 cuPhi = CuArray{Float32}(phi) # eigenvectors/mode shapes
 cuPsi_mw = CuArray{Float32}(ifc3_analytical)
 
