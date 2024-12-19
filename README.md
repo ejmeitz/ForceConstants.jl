@@ -62,7 +62,7 @@ ifc3_AD_sw = third_order(sys_sw, pot_sw, calc_AD_sw) # this will take awhile to 
 # Modal Coupling Constant Example #
 ###################################
 
-dynmat = dynamical_matrix(sys_lj, pot_lj, calc_analytical) # could just divide ifc2 by 39.95 as well
+dynmat = dynamical_matrix(sys_lj, pot_lj, calc_analytical_lj) # could just divide ifc2 by 39.95 as well
 freqs_sq, phi = get_modes(dynmat)
 
 # Mass weight third_order IFCs (modifies the earlier IFCs)
