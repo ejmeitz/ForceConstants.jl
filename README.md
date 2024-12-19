@@ -71,9 +71,9 @@ mass_weight_third_order!(ifc3_analytical, ustrip.(masses(sys_lj)))
 # Move to GPU
 using CUDA
 cuPhi = CuArray{Float32}(phi) # eigenvectors/mode shapes
-cuPsi_mw = CuArray{Float32}(ifc3_analytical)
+cuPsi_mw = CuArray{Float32}(ifc3_analytical.values)
 
-K3 = mcc3(cuPsi_mw, cuPhi_mw, 256) # there are 768 DoF, so 256 chosen to make calculation smaller
+K3 = mcc3(cuPsi_mw, cuPhi, 256) # there are 768 DoF, so 256 chosen to make calculation smaller
 ```
 -------------------------
 There are also `second_order!` and `third_order!` which allow you to pass your own storage if you want to re-use memory. A `DenseForceConstants` object will not be returned by these functions, just whatever storage they were provided.
