@@ -48,7 +48,7 @@ isapprox(ifc3_analytical.values, ifc3_AD.values, atol = 1e-12)
 ##############
 # SW EXAMPLE #
 ##############
-pot_sw = StillingerWeberSilicon() # energy units are eV / Å^2
+pot_sw = StillingerWeberSilicon() # energy units are eV, length are Å
 diamond_crystal = Diamond(5.43u"Å", :Si, SVector(3,3,3))
 sys_sw = SuperCellSystem(diamond_crystal)
 
